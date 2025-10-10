@@ -1,4 +1,3 @@
-
 export interface ChatMessage {
   role: string;
   content: string;
@@ -42,7 +41,13 @@ export interface ScriptSegment {
 }
 
 export interface GeneratedScript {
+  id: string; // Unique identifier for versioning
   title: string;
   hook: string;
   segments: ScriptSegment[];
+}
+
+export interface ApiKeys {
+  elevenLabs: string;
+  // Add other API keys here as needed
 }

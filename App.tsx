@@ -1,33 +1,45 @@
-
-import React, { useState, useCallback } from 'react';
-// FIX: Removed ApiKeyInput as per guideline to not ask user for API key.
+import React, { useState, useCallback, useEffect } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { PodcastSettings } from './components/PodcastSettings';
 import { ScriptPreview } from './components/ScriptPreview';
 import { Header } from './components/Header';
 import { Loader } from './components/Loader';
-import { parseFile } from './services/parserService';
+import { ApiSettings } from './components/ApiSettings';
 import { generatePodcastScript } from './services/geminiService';
-import type { ChatMessage, AnalysisResult, PodcastConfig, GeneratedScript } from './types';
+import type { ChatMessage, AnalysisResult, PodcastConfig, GeneratedScript, ApiKeys } from './types';
 import { PODCAST_STYLES, TECHNICALITY_LEVELS } from './constants';
 import { analyzeChat } from './services/analysisService';
+import { parseFile } from './services/parserService';
 
-// FIX: Removed 'apiKey' step as it's no longer needed.
+
 type AppStep = 'upload' | 'configure' | 'generate' | 'preview';
 
 const App: React.FC = () => {
-  // FIX: Removed apiKey state. API key is handled by environment variables.
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [podcastConfig, setPodcastConfig] = useState<PodcastConfig | null>(null);
-  const [generatedScript, setGeneratedScript] = useState<GeneratedScript | null>(null);
+  
+  const [scripts, setScripts] = useState<(GeneratedScript & { id: string })[]>([]);
+  const [activeScriptId, setActiveScriptId] = useState<string | null>(null);
+
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [loadingMessage, setLoadingMessage] = useState<string>('');
   const [error, setError] = useState<string>('');
-  // FIX: Start app at the 'upload' step.
   const [appStep, setAppStep] = useState<AppStep>('upload');
+  
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [apiKeys, setApiKeys] = useState<ApiKeys>({ elevenLabs: '' });
 
-  // FIX: Removed handleApiKeySubmit as API key is not handled in the UI.
+  useEffect(() => {
+    try {
+      const storedKeys = localStorage.getItem('chatcast_api_keys');
+      if (storedKeys) {
+        setApiKeys(JSON.parse(storedKeys));
+      }
+    } catch (e) {
+      console.error("Failed to parse API keys from localStorage", e);
+    }
+  }, []);
 
   const handleFileProcessed = useCallback((messages: ChatMessage[]) => {
     if (messages.length === 0) {
@@ -38,7 +50,6 @@ const App: React.FC = () => {
     setChatMessages(messages);
     setAnalysis(analysisResult);
 
-    // Initialize default config
     const initialVoiceMapping = new Map<string, string>();
     analysisResult.speakers.forEach((speaker, index) => {
       initialVoiceMapping.set(speaker, `Voice ${String.fromCharCode(65 + index)}`);
@@ -57,7 +68,6 @@ const App: React.FC = () => {
   }, []);
 
   const handleGenerateScript = async () => {
-    // FIX: Removed apiKey from check as it's handled by environment variables.
     if (!podcastConfig || !chatMessages) {
       setError('Missing configuration or chat messages.');
       return;
@@ -67,26 +77,36 @@ const App: React.FC = () => {
     setLoadingMessage('Generating podcast script... This may take a moment.');
     setError('');
     try {
-      // FIX: Removed apiKey from function call.
       const script = await generatePodcastScript(chatMessages, podcastConfig);
-      setGeneratedScript(script);
+      const newScript = { ...script, id: `script_${Date.now()}`};
+      setScripts(prev => [...prev, newScript]);
+      setActiveScriptId(newScript.id);
       setAppStep('preview');
     } catch (err) {
       console.error(err);
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred during script generation.';
       setError(`Failed to generate script: ${errorMessage}`);
-      setAppStep('configure'); // Go back to config step on error
+      setAppStep('configure'); 
     } finally {
       setIsLoading(false);
       setLoadingMessage('');
     }
+  };
+  
+  const handleUpdateActiveScript = (updatedScript: GeneratedScript) => {
+    setScripts(prevScripts => 
+      prevScripts.map(script => 
+        script.id === activeScriptId ? { ...updatedScript, id: script.id } : script
+      )
+    );
   };
 
   const handleReset = () => {
     setChatMessages([]);
     setAnalysis(null);
     setPodcastConfig(null);
-    setGeneratedScript(null);
+    setScripts([]);
+    setActiveScriptId(null);
     setError('');
     setIsLoading(false);
     setAppStep('upload');
@@ -96,7 +116,18 @@ const App: React.FC = () => {
     setAppStep('configure');
   };
   
-  // FIX: Removed handleNewKey as API key is not handled in the UI.
+  const handleSaveApiKeys = (keys: ApiKeys) => {
+    setApiKeys(keys);
+    try {
+      localStorage.setItem('chatcast_api_keys', JSON.stringify(keys));
+    } catch (e) {
+      console.error("Failed to save API keys to localStorage", e);
+      setError("Could not save API keys. Your browser might be in private mode or have storage disabled.");
+    }
+    setIsSettingsOpen(false);
+  };
+
+  const activeScript = scripts.find(s => s.id === activeScriptId);
 
   const renderContent = () => {
     if (isLoading) {
@@ -104,7 +135,6 @@ const App: React.FC = () => {
     }
     
     switch (appStep) {
-      // FIX: Removed 'apiKey' case.
       case 'upload':
         return <FileUpload onFileProcessed={handleFileProcessed} setIsLoading={setIsLoading} setLoadingMessage={setLoadingMessage} setError={setError} />;
       case 'configure':
@@ -118,8 +148,17 @@ const App: React.FC = () => {
         }
         return null;
       case 'preview':
-        if (generatedScript) {
-          return <ScriptPreview script={generatedScript} onReset={handleReset} onReconfigure={handleReconfigure} />;
+        if (activeScript) {
+          return <ScriptPreview 
+            key={activeScript.id} // Re-mount component on script change
+            script={activeScript} 
+            allScripts={scripts}
+            activeScriptId={activeScriptId}
+            setActiveScriptId={setActiveScriptId}
+            onUpdateScript={handleUpdateActiveScript}
+            onReset={handleReset} 
+            onReconfigure={handleReconfigure} 
+          />;
         }
         return null;
       default:
@@ -130,9 +169,21 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-dark-bg text-dark-text font-sans p-4 sm:p-6 lg:p-8">
       <div className="container mx-auto max-w-5xl">
-        <Header />
-        {/* FIX: Removed UI for changing API key. */}
+        <Header onSettingsClick={() => setIsSettingsOpen(true)} />
+        {isSettingsOpen && (
+          <ApiSettings
+            currentKeys={apiKeys}
+            onSave={handleSaveApiKeys}
+            onClose={() => setIsSettingsOpen(false)}
+          />
+        )}
         <main className="mt-6">
+          {error && (
+            <div className="bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded-lg relative mb-4" role="alert">
+              <strong className="font-bold">Error: </strong>
+              <span className="block sm:inline">{error}</span>
+            </div>
+          )}
           {renderContent()}
         </main>
       </div>

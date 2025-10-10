@@ -1,48 +1,54 @@
-
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import type { GeneratedScript } from '../types';
 import { DownloadIcon, RotateCcwIcon, SlidersHorizontalIcon } from './icons';
 
 interface ScriptPreviewProps {
   script: GeneratedScript;
+  allScripts: GeneratedScript[];
+  activeScriptId: string | null;
+  setActiveScriptId: (id: string) => void;
+  onUpdateScript: (updatedScript: GeneratedScript) => void;
   onReset: () => void;
   onReconfigure: () => void;
 }
 
 const calculateRows = (text: string) => {
   if (!text) return 1;
-  const lines = text.split('\n').length;
-  // A rough estimate for wrapping, assuming an average line length
-  const wrappedLines = Math.ceil(text.length / 80);
-  return Math.max(lines, wrappedLines);
+  const newlines = (text.match(/\n/g) || []).length;
+  // Simple heuristic for wrapping lines
+  const wrappedLines = Math.floor(text.length / 80);
+  return Math.max(1, newlines + wrappedLines + 1);
 };
 
 
-export const ScriptPreview: React.FC<ScriptPreviewProps> = ({ script, onReset, onReconfigure }) => {
-  const [editableScript, setEditableScript] = useState<GeneratedScript>(script);
+export const ScriptPreview: React.FC<ScriptPreviewProps> = ({ 
+  script, 
+  allScripts,
+  activeScriptId,
+  setActiveScriptId,
+  onUpdateScript,
+  onReset, 
+  onReconfigure 
+}) => {
 
-  useEffect(() => {
-    setEditableScript(script);
-  }, [script]);
-
-  const handleScriptChange = <K extends keyof GeneratedScript>(field: K, value: GeneratedScript[K]) => {
-    setEditableScript(prev => ({ ...prev!, [field]: value }));
+  const handleScriptChange = <K extends keyof Omit<GeneratedScript, 'id' | 'segments'>>(
+    field: K, 
+    value: GeneratedScript[K]
+  ) => {
+    onUpdateScript({ ...script, [field]: value });
   };
 
   const handleSegmentChange = (index: number, field: 'speaker' | 'line', value: string) => {
-    setEditableScript(prev => {
-      if (!prev) return null!;
-      const newSegments = [...prev.segments];
-      newSegments[index] = { ...newSegments[index], [field]: value };
-      return { ...prev, segments: newSegments };
-    });
+    const newSegments = [...script.segments];
+    newSegments[index] = { ...newSegments[index], [field]: value };
+    onUpdateScript({ ...script, segments: newSegments });
   };
 
   const formatScriptForDownload = (): string => {
-    let text = `Title: ${editableScript.title}\n\n`;
-    text += `HOOK:\n${editableScript.hook}\n\n`;
+    let text = `Title: ${script.title}\n\n`;
+    text += `HOOK:\n${script.hook}\n\n`;
     text += '--- SCRIPT ---\n\n';
-    editableScript.segments.forEach(segment => {
+    script.segments.forEach(segment => {
       text += `${segment.speaker.toUpperCase()}:\n`;
       text += `${segment.line}\n`;
       if (segment.sfx) {
@@ -59,7 +65,7 @@ export const ScriptPreview: React.FC<ScriptPreviewProps> = ({ script, onReset, o
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${editableScript.title.toLowerCase().replace(/\s+/g, '_')}_script.txt`;
+    a.download = `${script.title.toLowerCase().replace(/\s+/g, '_')}_script.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -68,17 +74,30 @@ export const ScriptPreview: React.FC<ScriptPreviewProps> = ({ script, onReset, o
 
   return (
     <div className="bg-dark-card border border-dark-border rounded-lg shadow-lg p-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 border-b border-dark-border pb-4">
-        <div>
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 border-b border-dark-border pb-4 gap-4">
+        <div className="flex-1">
           <input
             type="text"
-            value={editableScript.title}
+            value={script.title}
             onChange={(e) => handleScriptChange('title', e.target.value)}
             className="w-full bg-transparent text-3xl font-bold text-white focus:outline-none focus:ring-1 focus:ring-brand-accent rounded-md -ml-1 px-1"
           />
-          <p className="text-brand-accent mt-1">Your editable podcast script is ready!</p>
+           <div className="flex items-center mt-2">
+            <p className="text-brand-accent mr-2 text-sm whitespace-nowrap">Script Version:</p>
+            <select
+                value={activeScriptId ?? ''}
+                onChange={(e) => setActiveScriptId(e.target.value)}
+                className="bg-dark-bg border border-dark-border rounded-md px-2 py-1 text-sm focus:ring-2 focus:ring-brand-secondary focus:outline-none"
+            >
+                {allScripts.map((s, index) => (
+                    <option key={s.id} value={s.id}>
+                        Version {index + 1} - {s.title.substring(0, 20)}{s.title.length > 20 ? '...' : ''}
+                    </option>
+                ))}
+            </select>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2 mt-4 sm:mt-0">
+        <div className="flex flex-wrap gap-2">
            <button
             onClick={onReconfigure}
             className="bg-dark-border hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors flex items-center"
@@ -107,16 +126,16 @@ export const ScriptPreview: React.FC<ScriptPreviewProps> = ({ script, onReset, o
         <h3>Hook</h3>
         <div className="bg-dark-bg p-1 rounded-md border-l-4 border-brand-accent">
            <textarea
-            value={editableScript.hook}
+            value={script.hook}
             onChange={(e) => handleScriptChange('hook', e.target.value)}
-            rows={calculateRows(editableScript.hook)}
+            rows={calculateRows(script.hook)}
             className="w-full bg-transparent italic focus:outline-none resize-y p-2"
           />
         </div>
         
         <h3 className="mt-8">Full Script</h3>
         <div className="space-y-6 bg-dark-bg p-4 rounded-md">
-          {editableScript.segments.map((segment, index) => (
+          {script.segments.map((segment, index) => (
             <div key={index} className="pl-4 border-l-2 border-dark-border">
               <input 
                 type="text"
