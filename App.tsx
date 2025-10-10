@@ -55,12 +55,15 @@ const App: React.FC = () => {
           setElevenLabsVoices([]);
           return;
       }
+      // Clear previous voice-related errors
+      setError(prev => prev.includes("ElevenLabs") ? "" : prev);
       try {
           const voices = await getVoices(apiKey);
           setElevenLabsVoices(voices);
       } catch (err) {
           console.error(err);
-          setError("Failed to fetch ElevenLabs voices. Your API key might be invalid.");
+          // FIX: Display the specific error message from the service layer.
+          setError(err instanceof Error ? err.message : "An unknown error occurred while fetching voices.");
           setElevenLabsVoices([]);
       }
   };
@@ -146,7 +149,11 @@ const App: React.FC = () => {
         const audioBlobs: Blob[] = [];
         for (const segment of script.segments) {
             const voiceId = voiceIdLookup.get(segment.speaker);
-            if (voiceId && segment.line.trim()) {
+            if (!voiceId) {
+                console.warn(`Skipping audio for speaker "${segment.speaker}" - no voice ID assigned.`);
+                continue;
+            }
+            if (segment.line.trim()) {
                 setLoadingMessage(`Generating audio for ${segment.speaker}: "${segment.line.substring(0, 20)}..."`);
                 const audioBlob = await textToSpeech(apiKeys.elevenLabs, segment.line, voiceId);
                 audioBlobs.push(audioBlob);

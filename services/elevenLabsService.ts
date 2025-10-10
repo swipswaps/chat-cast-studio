@@ -10,11 +10,22 @@ const API_BASE_URL = 'https://api.elevenlabs.io/v1';
 export async function getVoices(apiKey: string): Promise<ElevenLabsVoice[]> {
   const response = await fetch(`${API_BASE_URL}/voices`, {
     headers: { 'xi-api-key': apiKey },
+  }).catch(err => {
+      console.error("Fetch failed:", err);
+      throw new Error("A network error occurred. Please check your internet connection.");
   });
 
   if (!response.ok) {
+    // FIX: Add specific check for 401 Unauthorized to confirm invalid API key.
+    if (response.status === 401) {
+        throw new Error("Failed to fetch ElevenLabs voices: The provided API key is invalid or unauthorized.");
+    }
+    if (response.status === 0) {
+        // This is a strong indicator of a CORS (Cross-Origin Resource Sharing) error.
+        throw new Error("Request failed. This is often due to a CORS policy blocking the request from the browser. The ElevenLabs API may require calls to be made from a server. Consider using a backend proxy.");
+    }
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(`Failed to fetch ElevenLabs voices: ${response.statusText} - ${errorData.detail?.message || 'Check your API key.'}`);
+    throw new Error(`Failed to fetch ElevenLabs voices: ${response.statusText} - ${errorData.detail?.message || 'An unknown error occurred.'}`);
   }
 
   const data = await response.json();
@@ -43,9 +54,18 @@ export async function textToSpeech(apiKey: string, text: string, voiceId: string
         similarity_boost: 0.75,
       },
     }),
+  }).catch(err => {
+      console.error("Fetch failed:", err);
+      throw new Error("A network error occurred during TTS generation. Please check your internet connection.");
   });
 
   if (!response.ok) {
+     if (response.status === 401) {
+        throw new Error("ElevenLabs TTS failed: The provided API key is invalid or unauthorized.");
+    }
+     if (response.status === 0) {
+        throw new Error("TTS request failed. This is often due to a CORS policy. A backend proxy is the recommended solution.");
+    }
     const errorData = await response.json().catch(() => ({}));
     throw new Error(`ElevenLabs TTS failed: ${response.statusText} - ${errorData.detail?.message || 'An error occurred.'}`);
   }

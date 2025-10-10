@@ -16,7 +16,8 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({ currentKeys, onSave, o
   };
   
   const handleChange = (service: keyof ApiKeys, value: string) => {
-    setKeys(prev => ({...prev, [service]: value}));
+    // Trim whitespace to prevent copy-paste errors
+    setKeys(prev => ({...prev, [service]: value.trim()}));
   };
 
   return (
