@@ -1,0 +1,5 @@
+{
+  "name": "Chatcast Studio",
+  "description": "An interactive AI-powered application to convert ChatGPT and other chat logs into professionally styled, multi-voice podcast scripts. Upload or paste your chat, configure the style, and generate a script ready for audio production.",
+  "requestFramePermissions": []
+}
