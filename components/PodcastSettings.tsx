@@ -1,6 +1,5 @@
-
 import React from 'react';
-import type { AnalysisResult, PodcastConfig } from '../types';
+import type { AnalysisResult, PodcastConfig, ElevenLabsVoice, VoiceSetting } from '../types';
 import { PODCAST_STYLES, TECHNICALITY_LEVELS } from '../constants';
 import { SlidersHorizontalIcon, MicIcon, SparklesIcon } from './icons';
 import { AnalysisSummary } from './AnalysisSummary';
@@ -10,9 +9,10 @@ interface PodcastSettingsProps {
   config: PodcastConfig;
   setConfig: React.Dispatch<React.SetStateAction<PodcastConfig | null>>;
   onGenerate: () => void;
+  elevenLabsVoices: ElevenLabsVoice[];
 }
 
-export const PodcastSettings: React.FC<PodcastSettingsProps> = ({ analysis, config, setConfig, onGenerate }) => {
+export const PodcastSettings: React.FC<PodcastSettingsProps> = ({ analysis, config, setConfig, onGenerate, elevenLabsVoices }) => {
   const handleStyleChange = (styleId: string) => {
     const newStyle = PODCAST_STYLES.find(s => s.id === styleId);
     if (newStyle) {
@@ -27,11 +27,12 @@ export const PodcastSettings: React.FC<PodcastSettingsProps> = ({ analysis, conf
     }
   };
 
-  const handleVoiceMappingChange = (speaker: string, newVoice: string) => {
+  const handleVoiceSettingChange = (speaker: string, field: keyof VoiceSetting, value: string) => {
     setConfig(prev => {
       if (!prev) return null;
       const newMap = new Map(prev.voiceMapping);
-      newMap.set(speaker, newVoice);
+      const currentSetting = newMap.get(speaker) || { podcastName: '', voiceId: '' };
+      newMap.set(speaker, { ...currentSetting, [field]: value });
       return { ...prev, voiceMapping: newMap };
     });
   };
@@ -90,16 +91,33 @@ export const PodcastSettings: React.FC<PodcastSettingsProps> = ({ analysis, conf
             <MicIcon className="w-5 h-5 mr-2 text-brand-accent" />
             Voice Assignment
           </h3>
-          <div className="space-y-3">
+          <div className="space-y-4">
             {analysis.speakers.map(speaker => (
-              <div key={speaker} className="grid grid-cols-3 items-center gap-4">
-                <span className="font-medium col-span-1 capitalize">{speaker}:</span>
-                <input
-                  type="text"
-                  value={config.voiceMapping.get(speaker) || ''}
-                  onChange={(e) => handleVoiceMappingChange(speaker, e.target.value)}
-                  className="col-span-2 w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-md focus:ring-2 focus:ring-brand-secondary focus:outline-none transition-shadow"
-                />
+              <div key={speaker} className="grid grid-cols-1 md:grid-cols-3 items-center gap-4 p-3 bg-dark-bg rounded-md">
+                <span className="font-medium capitalize md:col-span-1">{speaker} is...</span>
+                <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    placeholder="Podcast Name (e.g., Host)"
+                    value={config.voiceMapping.get(speaker)?.podcastName || ''}
+                    onChange={(e) => handleVoiceSettingChange(speaker, 'podcastName', e.target.value)}
+                    className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-md focus:ring-2 focus:ring-brand-secondary focus:outline-none transition-shadow"
+                  />
+                  {elevenLabsVoices.length > 0 ? (
+                    <select
+                      value={config.voiceMapping.get(speaker)?.voiceId || ''}
+                      onChange={(e) => handleVoiceSettingChange(speaker, 'voiceId', e.target.value)}
+                      className="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-md focus:ring-2 focus:ring-brand-secondary focus:outline-none transition-shadow"
+                    >
+                      <option value="" disabled>Select a voice</option>
+                      {elevenLabsVoices.map(voice => (
+                        <option key={voice.voice_id} value={voice.voice_id}>{voice.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="text-xs text-dark-text-secondary p-2 rounded-md bg-dark-border/50 text-center">Add ElevenLabs API key in Settings to select voices.</div>
+                  )}
+                </div>
               </div>
             ))}
           </div>

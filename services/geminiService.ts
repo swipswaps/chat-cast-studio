@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type } from '@google/genai';
 import type { ChatMessage, PodcastConfig, GeneratedScript } from '../types';
 
@@ -23,7 +22,7 @@ export async function generatePodcastScript(
     .join('\n\n');
 
   const voiceMappingString = Array.from(config.voiceMapping.entries())
-    .map(([original, newVoice]) => `'${original}' (original) will be voiced by '${newVoice}' (podcast voice).`)
+    .map(([original, voiceSetting]) => `'${original}' (original) will be voiced by '${voiceSetting.podcastName}' (podcast voice).`)
     .join(' ');
   
   const systemInstruction = `
@@ -41,7 +40,7 @@ You are an expert podcast scriptwriter and producer. Your task is to transform a
 2.  **Add Structure:**
     *   **Catchy Title:** Create a short, engaging title for the episode.
     *   **Hook (Intro):** Write a 15-20 second hook to grab the listener's attention. Tease the main topic and what they will learn.
-    *   **Segments:** Break the conversation into logical segments. Use a "Host" to introduce topics and provide transitions.
+    *   **Segments:** Break the conversation into logical segments. Use the assigned podcast names to introduce topics and provide transitions.
     *   **Outro:** Write a brief outro summarizing the key takeaways and thanking the listener.
 3.  **Handle Code Blocks:** Based on the technicality level:
     *   **Beginner:** Do not read code. Describe what the code does in simple, high-level terms.
@@ -49,7 +48,7 @@ You are an expert podcast scriptwriter and producer. Your task is to transform a
     *   **Advanced:** Explain the code's function and may include very short, key snippets verbatim if they are critical to the explanation.
 4.  **Refine Dialogue:**
     *   Rewrite the raw chat content into natural-sounding speech.
-    *   Ensure the dialogue reflects the assigned voices (e.g., 'Host' is inquisitive, 'Guest' is knowledgeable).
+    *   Ensure the dialogue reflects the assigned podcast names (e.g., 'Host' is inquisitive, 'Guest' is knowledgeable).
     *   Break up long monologues.
 5.  **Add Production Cues (Optional but encouraged):**
     *   Where appropriate, suggest non-intrusive sound effects (SFX) like '[SFX: gentle keyboard typing]' or '[SFX: a subtle 'aha' sound effect]'.
@@ -110,7 +109,10 @@ Now, generate the podcast script based on these instructions.
       throw new Error("Received malformed JSON from API.");
     }
 
-    return parsedJson as GeneratedScript;
+    // FIX: Property 'id' is missing in type 'Omit<GeneratedScript, "id">' but required in type 'GeneratedScript'.
+    // The Gemini API response does not include an ID. Add a placeholder ID to satisfy the
+    // GeneratedScript type. The calling component will overwrite this with a real ID.
+    return { ...parsedJson, id: '' } as GeneratedScript;
 
   } catch (error) {
     console.error("Error calling Gemini API:", error);

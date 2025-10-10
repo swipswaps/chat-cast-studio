@@ -25,10 +25,15 @@ export interface TechnicalityLevel {
   description: string;
 }
 
+export interface VoiceSetting {
+  podcastName: string;
+  voiceId: string; // ElevenLabs voice ID
+}
+
 export interface PodcastConfig {
   style: PodcastStyle;
   technicality: TechnicalityLevel;
-  voiceMapping: Map<string, string>; // Maps original role to a new voice name
+  voiceMapping: Map<string, VoiceSetting>; // Maps original role to voice settings
   includeMusic: boolean;
   includeSfx: boolean;
 }
@@ -50,4 +55,9 @@ export interface GeneratedScript {
 export interface ApiKeys {
   elevenLabs: string;
   // Add other API keys here as needed
+}
+
+export interface ElevenLabsVoice {
+  voice_id: string;
+  name: string;
 }
