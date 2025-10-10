@@ -91,6 +91,10 @@ const App: React.FC = () => {
     setIsLoading(false);
     setAppStep('upload');
   };
+
+  const handleReconfigure = () => {
+    setAppStep('configure');
+  };
   
   // FIX: Removed handleNewKey as API key is not handled in the UI.
 
@@ -115,7 +119,7 @@ const App: React.FC = () => {
         return null;
       case 'preview':
         if (generatedScript) {
-          return <ScriptPreview script={generatedScript} onReset={handleReset} />;
+          return <ScriptPreview script={generatedScript} onReset={handleReset} onReconfigure={handleReconfigure} />;
         }
         return null;
       default:
