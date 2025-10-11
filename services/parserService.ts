@@ -80,7 +80,7 @@ function parseTxt(content: string): ChatMessage[] {
     messages.push(currentMessage);
   }
 
-  if(messages.length === 0) {
+  if(messages.length === 0 && content.trim().length > 0) {
     // Fallback for text with no role prefixes
      messages.push({ role: 'user', content: content });
   }
@@ -103,20 +103,19 @@ async function parseZip(file: File): Promise<ChatMessage[]> {
   }
   
   // Look for any json/txt file
-  // FIX: Using Object.keys().map() instead of Object.values() to fix type inference issues with JSZip files.
   const files = Object.keys(zip.files).map(name => zip.files[name]);
 
-  const anyJson = files.find(f => f.name.endsWith('.json'));
+  const anyJson = files.find(f => !f.dir && f.name.endsWith('.json'));
   if (anyJson) {
     return parseJson(await anyJson.async('string'));
   }
 
-  const anyTxt = files.find(f => f.name.endsWith('.txt'));
+  const anyTxt = files.find(f => !f.dir && f.name.endsWith('.txt'));
   if (anyTxt) {
     return parseTxt(await anyTxt.async('string'));
   }
 
-  throw new Error('No "chat.json" or "chat.txt" file found in the zip archive.');
+  throw new Error('No compatible .json or .txt file found in the zip archive.');
 }
 
 
@@ -126,29 +125,33 @@ async function parseZip(file: File): Promise<ChatMessage[]> {
 function processCodeBlocks(messages: ChatMessage[]): ChatMessage[] {
   const processed: ChatMessage[] = [];
   messages.forEach(msg => {
+    if (typeof msg.content !== 'string') {
+        // handle cases where content might be null or undefined
+        if(msg.content) {
+            processed.push({ ...msg, content: String(msg.content) });
+        }
+        return;
+    }
     const parts = msg.content.split(CODE_FENCE);
     let inCodeBlock = false;
     parts.forEach((part, index) => {
-      if (part.trim()) {
+      if (index === 0) {
+        if (part.trim()) {
+           processed.push({ role: msg.role, content: part.trim(), isCodeBlock: false });
+        }
+      } else {
         if (inCodeBlock) {
+          if (part.trim()) {
+            processed.push({ role: msg.role, content: part.trim(), isCodeBlock: false });
+          }
+        } else {
           const language = part.split('\n')[0].trim();
           const code = part.substring(language.length).trim();
-          processed.push({
-            role: msg.role,
-            content: code,
-            isCodeBlock: true,
-          });
-        } else {
-          processed.push({
-            role: msg.role,
-            content: part.trim(),
-            isCodeBlock: false,
-          });
+          if (code) {
+             processed.push({ role: msg.role, content: code, isCodeBlock: true });
+          }
         }
-      }
-      // Every other part is a code block, starting from the second part
-      if(index < parts.length - 1) {
-         inCodeBlock = !inCodeBlock;
+        inCodeBlock = !inCodeBlock;
       }
     });
   });

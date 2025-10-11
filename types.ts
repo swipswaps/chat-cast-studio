@@ -27,13 +27,13 @@ export interface TechnicalityLevel {
 
 export interface VoiceSetting {
   podcastName: string;
-  voiceId: string; // ElevenLabs voice ID
+  voiceId: string; // voiceURI for browser voices
 }
 
 export interface PodcastConfig {
   style: PodcastStyle;
   technicality: TechnicalityLevel;
-  voiceMapping: Map<string, VoiceSetting>; // Maps original role to voice settings
+  voiceMapping: Map<string, VoiceSetting>;
   includeMusic: boolean;
   includeSfx: boolean;
 }
@@ -46,18 +46,16 @@ export interface ScriptSegment {
 }
 
 export interface GeneratedScript {
-  id: string; // Unique identifier for versioning
+  id: string;
   title: string;
   hook: string;
   segments: ScriptSegment[];
 }
 
-export interface ApiKeys {
-  elevenLabs: string;
-  // Add other API keys here as needed
+export interface BrowserVoice {
+  name: string;
+  lang: string;
+  voiceURI: string;
 }
 
-export interface ElevenLabsVoice {
-  voice_id: string;
-  name: string;
-}
+export type RecordingState = 'idle' | 'permission' | 'recording' | 'processing' | 'finished' | 'error';

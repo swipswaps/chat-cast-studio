@@ -11,7 +11,7 @@ export async function generatePodcastScript(
   messages: ChatMessage[],
   config: PodcastConfig
 ): Promise<GeneratedScript> {
-  // FIX: API key must be from process.env.API_KEY per guidelines.
+  // Use process.env.API_KEY per guidelines.
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const chatHistory = messages
@@ -91,7 +91,6 @@ Now, generate the podcast script based on these instructions.
 
   try {
     const response = await ai.models.generateContent({
-      // FIX: Use recommended model per guidelines.
       model: 'gemini-2.5-flash',
       contents: systemInstruction,
       config: {
@@ -104,21 +103,17 @@ Now, generate the podcast script based on these instructions.
     const jsonString = response.text;
     const parsedJson = JSON.parse(jsonString);
     
-    // Basic validation
     if (!parsedJson.title || !parsedJson.hook || !Array.isArray(parsedJson.segments)) {
       throw new Error("Received malformed JSON from API.");
     }
 
-    // FIX: Property 'id' is missing in type 'Omit<GeneratedScript, "id">' but required in type 'GeneratedScript'.
-    // The Gemini API response does not include an ID. Add a placeholder ID to satisfy the
-    // GeneratedScript type. The calling component will overwrite this with a real ID.
     return { ...parsedJson, id: '' } as GeneratedScript;
 
   } catch (error) {
     console.error("Error calling Gemini API:", error);
-    if (error instanceof Error && error.message.includes('API key not valid')) {
-        throw new Error('Your Gemini API key is not valid. Please check it and try again.');
+    if (error instanceof Error && (error.message.includes('API key not valid') || error.message.includes('API_KEY'))) {
+        throw new Error('An authentication error occurred with the AI service. The server configuration may be incorrect.');
     }
-    throw new Error('Failed to communicate with the Gemini API. Please check your network connection and API key.');
+    throw new Error('Failed to communicate with the AI service. Please check your network connection and server configuration.');
   }
 }

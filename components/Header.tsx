@@ -1,29 +1,17 @@
+
 import React from 'react';
-import { PodcastIcon, SettingsIcon } from './icons';
+import { PodcastIcon } from './icons';
 
-interface HeaderProps {
-    onSettingsClick: () => void;
-}
-
-export const Header: React.FC<HeaderProps> = ({ onSettingsClick }) => {
+export const Header: React.FC = () => {
   return (
-    <header className="relative text-center mb-8">
-        <div className="flex items-center justify-center mb-2">
-            <PodcastIcon className="w-10 h-10 text-brand-secondary mr-3"/>
-            <h1 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight">
-              Chatcast Studio
-            </h1>
+    <header className="bg-dark-card border-b border-dark-border shadow-md">
+      <div className="container mx-auto px-4 py-4 flex items-center">
+        <PodcastIcon className="w-10 h-10 text-brand-primary mr-3" />
+        <div>
+          <h1 className="text-2xl font-bold text-white">Chat2Podcast</h1>
+          <p className="text-sm text-dark-text-secondary">Transform your chat logs into engaging podcasts with AI.</p>
         </div>
-      <p className="text-lg text-dark-text-secondary">
-        Turn your chat logs into studio-quality podcast scripts with AI.
-      </p>
-      <button 
-        onClick={onSettingsClick} 
-        className="absolute top-0 right-0 p-2 text-dark-text-secondary hover:text-white transition-colors"
-        aria-label="Settings"
-      >
-        <SettingsIcon className="w-6 h-6" />
-      </button>
+      </div>
     </header>
   );
 };

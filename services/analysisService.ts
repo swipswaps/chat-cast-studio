@@ -7,7 +7,7 @@ const WORDS_PER_MINUTE = 150; // Average speaking rate
  * Analyzes an array of chat messages to extract key metrics.
  */
 export function analyzeChat(messages: ChatMessage[]): AnalysisResult {
-  const speakers = [...new Set(messages.map(m => m.role))];
+  const speakers = [...new Set(messages.map(m => m.role).filter(role => role !== 'unknown' && role))];
   const messageCount = messages.length;
   
   let wordCount = 0;
@@ -26,7 +26,7 @@ export function analyzeChat(messages: ChatMessage[]): AnalysisResult {
   const proseWordCount = wordCount - codeWordCount;
   const estimatedDurationMinutes = Math.max(1, Math.round(proseWordCount / WORDS_PER_MINUTE));
 
-  const proseToCodeRatio = codeWordCount > 0 
+  const proseToCodeRatio = wordCount > 0 && codeWordCount > 0 
     ? `${Math.round((proseWordCount / wordCount) * 100)}% / ${Math.round((codeWordCount / wordCount) * 100)}%`
     : '100% / 0%';
 
