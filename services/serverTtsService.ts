@@ -28,7 +28,8 @@ export async function generateAudioFromServer(
     script: GeneratedScript,
     config: PodcastConfig,
 ): Promise<Blob> {
-    const endpoint = '/api/generate-audio'; // The hypothetical server endpoint.
+    // The local development server endpoint.
+    const endpoint = 'http://localhost:3000/api/generate-audio';
     logger.info(`Sending script to backend for audio generation at ${endpoint}`);
 
     try {
@@ -58,10 +59,13 @@ export async function generateAudioFromServer(
 
     } catch (error) {
         logger.error('Failed to generate audio from server.', error);
-        throw new Error(
-            'Could not connect to the audio generation server. ' +
-            'Please ensure the backend TTS server is running and accessible. ' +
-            'See `tts_server/README.md` for setup instructions.'
-        );
+        if (error instanceof TypeError) { // Network errors (e.g., server not running) often manifest as TypeErrors
+             throw new Error(
+                'Could not connect to the local audio generation server. ' +
+                'Please ensure it is running (use `npm start`). ' +
+                'See the README.md for setup instructions.'
+            );
+        }
+        throw error; // Re-throw other errors
     }
 }

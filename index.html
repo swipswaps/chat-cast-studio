@@ -4,46 +4,29 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chatcast Studio</title>
-    <!-- FIX: Re-added COOP and COEP headers required for ffmpeg.wasm -->
+    <!-- COOP and COEP headers are required for ffmpeg.wasm to work -->
     <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin" />
     <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              'brand-primary': '#1e40af',
-              'brand-secondary': '#3b82f6',
-              'brand-accent': '#60a5fa',
-              'dark-bg': '#111827',
-              'dark-card': '#1f2937',
-              'dark-border': '#374151',
-              'dark-text': '#d1d5db',
-              'dark-text-secondary': '#9ca3af',
-            },
-          },
-        },
-      };
-    </script>
+    <link rel="stylesheet" href="/src/index.css">
   <script type="importmap">
 {
   "imports": {
-    "jszip": "https://aistudiocdn.com/jszip@^3.10.1",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.24.0",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.23.0",
-    "react-dom": "https://aistudiocdn.com/react-dom@^19.2.0",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "react-dropzone": "https://aistudiocdn.com/react-dropzone@^14.3.8",
-    "@ffmpeg/ffmpeg": "https://aistudiocdn.com/@ffmpeg/ffmpeg@^0.12.10",
-    "@ffmpeg/util": "https://aistudiocdn.com/@ffmpeg/util@^0.12.1"
+    "vite": "https://aistudiocdn.com/vite@^7.1.9",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.4",
+    "jszip": "https://aistudiocdn.com/jszip@^3.10.1",
+    "@ffmpeg/util": "https://aistudiocdn.com/@ffmpeg/util@^0.12.2",
+    "@ffmpeg/ffmpeg": "https://aistudiocdn.com/@ffmpeg/ffmpeg@^0.12.15"
   }
 }
 </script>
 </head>
   <body class="bg-dark-bg text-dark-text antialiased">
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <script type="module" src="/src/index.tsx"></script>
   </body>
 </html>
