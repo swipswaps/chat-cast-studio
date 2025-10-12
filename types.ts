@@ -1,4 +1,4 @@
-// FIX: Removed conflicting self-import of 'ChatMessage'.
+
 
 export interface ChatMessage {
   role: string;
@@ -40,7 +40,6 @@ export interface PodcastConfig {
   includeSfx: boolean;
 }
 
-// A version of PodcastConfig where the Map is converted to an array for JSON serialization
 export interface SerializablePodcastConfig {
   style: PodcastStyle;
   technicality: TechnicalityLevel;
@@ -55,11 +54,10 @@ export interface ScriptSegment {
   sfx?: string;
   type: 'intro' | 'hook' | 'segment_host' | 'segment_guest' | 'transition' | 'code_explanation' | 'outro' | 'music_bridge';
   
-  // Editable properties for voice synthesis
-  editedLine?: string; // If present, this text is used for speech instead of 'line'.
-  rate?: number;       // Speech rate (0.1 to 10, default 1).
-  pitch?: number;      // Speech pitch (0 to 2, default 1).
-  volume?: number;     // Speech volume (0 to 1, default 1).
+  editedLine?: string;
+  rate?: number;
+  pitch?: number;
+  volume?: number;
 }
 
 
@@ -78,7 +76,6 @@ export interface BrowserVoice {
 
 export type RecordingState = 'idle' | 'permission' | 'recording' | 'processing' | 'finished' | 'error';
 
-// The structure of the downloadable/uploadable project file
 export interface PodcastProjectFile {
   version: string;
   generatedScript: GeneratedScript;
@@ -86,7 +83,6 @@ export interface PodcastProjectFile {
   analysisResult: AnalysisResult;
 }
 
-// The result of the parser service, which can be one of three types
 export type ProcessedFile = 
   | { type: 'chat'; messages: ChatMessage[] }
   | { 
@@ -100,3 +96,19 @@ export type ProcessedFile =
       script: GeneratedScript;
       analysis: AnalysisResult;
     };
+
+export type PlaybackState = 'playing' | 'paused' | 'stopped';
+
+export interface ExportOptions {
+    format: 'mp3' | 'mp4';
+    includeSubtitles: boolean;
+    backgroundImage?: File;
+}
+
+export interface ExportProgress {
+    status: 'idle' | 'rendering' | 'packaging' | 'complete' | 'error';
+    message: string;
+    percentage: number;
+    outputUrl?: string;
+    outputFilename?: string;
+}

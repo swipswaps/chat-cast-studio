@@ -122,34 +122,6 @@ export const PodcastIcon: React.FC<IconProps> = (props) => (
   </svg>
 );
 
-export const SettingsIcon: React.FC<IconProps> = (props) => (
-  <svg {...defaultProps} {...props}>
-    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 0 2l-.15.08a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1 0-2l.15-.08a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-    <circle cx="12" cy="12" r="3" />
-  </svg>
-);
-
-export const KeyRoundIcon: React.FC<IconProps> = (props) => (
-    <svg {...defaultProps} {...props}>
-        <path d="M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z" />
-        <circle cx="16.5" cy="7.5" r=".5" fill="currentColor" />
-    </svg>
-);
-
-export const CheckCircle2Icon: React.FC<IconProps> = (props) => (
-    <svg {...defaultProps} {...props}>
-        <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-        <path d="m9 12 2 2 4-4" />
-    </svg>
-);
-
-export const AlertTriangleIcon: React.FC<IconProps> = (props) => (
-    <svg {...defaultProps} {...props}>
-        <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-        <path d="M12 9v4" /><path d="M12 17h.01" />
-    </svg>
-);
-
 export const ArrowLeftIcon: React.FC<IconProps> = (props) => (
     <svg {...defaultProps} {...props}>
         <path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>
@@ -168,27 +140,9 @@ export const DownloadIcon: React.FC<IconProps> = (props) => (
     </svg>
 );
 
-export const LoaderIcon: React.FC<IconProps> = (props) => (
-    <svg {...defaultProps} {...props}>
-        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-    </svg>
-);
-
 export const PlayIcon: React.FC<IconProps> = (props) => (
     <svg {...defaultProps} {...props}>
         <polygon points="5 3 19 12 5 21 5 3"/>
-    </svg>
-);
-
-export const SquareIcon: React.FC<IconProps> = (props) => (
-    <svg {...defaultProps} {...props}>
-        <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
-    </svg>
-);
-
-export const AudioLinesIcon: React.FC<IconProps> = (props) => (
-    <svg {...defaultProps} {...props}>
-        <path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/>
     </svg>
 );
 
@@ -199,14 +153,38 @@ export const PencilIcon: React.FC<IconProps> = (props) => (
     </svg>
 );
 
-export const ChevronLeftIcon: React.FC<IconProps> = (props) => (
+export const PauseIcon: React.FC<IconProps> = (props) => (
     <svg {...defaultProps} {...props}>
-        <path d="m15 18-6-6 6-6"/>
+        <rect x="6" y="4" width="4" height="16" />
+        <rect x="14" y="4" width="4" height="16" />
     </svg>
 );
 
-export const ChevronRightIcon: React.FC<IconProps> = (props) => (
+export const StopCircleIcon: React.FC<IconProps> = (props) => (
     <svg {...defaultProps} {...props}>
-        <path d="m9 18 6-6-6-6"/>
+        <circle cx="12" cy="12" r="10" />
+        <rect x="9" y="9" width="6" height="6" />
+    </svg>
+);
+
+export const RewindIcon: React.FC<IconProps> = (props) => (
+    <svg {...defaultProps} {...props}>
+        <polygon points="11 19 2 12 11 5 11 19" />
+        <polygon points="22 19 13 12 22 5 22 19" />
+    </svg>
+);
+
+export const FastForwardIcon: React.FC<IconProps> = (props) => (
+    <svg {...defaultProps} {...props}>
+        <polygon points="13 19 22 12 13 5 13 19" />
+        <polygon points="2 19 11 12 2 5 2 19" />
+    </svg>
+);
+
+export const DownloadCloudIcon: React.FC<IconProps> = (props) => (
+    <svg {...defaultProps} {...props}>
+        <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+        <path d="M12 12v9" />
+        <path d="m8 17 4 4 4-4" />
     </svg>
 );
