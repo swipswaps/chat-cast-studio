@@ -23,7 +23,7 @@ export const ScriptPreview: React.FC<ScriptPreviewProps> = ({ script: initialScr
     const [currentSegmentIndex, setCurrentSegmentIndex] = useState<number>(0);
     const [editingSegment, setEditingSegment] = useState<ScriptSegment | null>(null);
     const [isExporting, setIsExporting] = useState(false);
-    const [isBusy, setIsBusy] = useState(false);
+    const isBusy = useRef(false);
     
     // Stop playback when component unmounts
     useEffect(() => {
@@ -32,17 +32,18 @@ export const ScriptPreview: React.FC<ScriptPreviewProps> = ({ script: initialScr
         };
     }, []);
 
-    const performBusyAction = async (action: () => void) => {
-        if (isBusy) return;
-        setIsBusy(true);
+    const performBusyAction = async (action: () => Promise<void>) => {
+        if (isBusy.current) return;
+        isBusy.current = true;
         try {
-            action();
+            await action();
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
+            const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred in an action.';
+            logger.error('Error during busy action:', err);
+            setError(errorMessage);
+        } finally {
+            isBusy.current = false;
         }
-        // Add a small delay to prevent rapid-fire commands from overwhelming the speech synth
-        await new Promise(resolve => setTimeout(resolve, 50));
-        setIsBusy(false);
     };
 
     const handleSegmentStart = useCallback((index: number) => {
@@ -52,17 +53,16 @@ export const ScriptPreview: React.FC<ScriptPreviewProps> = ({ script: initialScr
     const handlePlaybackFinish = useCallback(() => {
         logger.info('Playback finished.');
         setPlaybackState('stopped');
-        // Do not reset index, keep it at the last segment
         setCurrentSegmentIndex(prev => Math.max(0, prev));
     }, []);
 
     const handlePlaybackError = useCallback((error: string) => {
         logger.error('Playback error received by component:', error);
-        setError(error);
+        setError(`Playback error: ${error}`);
         setPlaybackState('stopped');
     }, [setError]);
 
-    const handlePlayPause = () => performBusyAction(() => {
+    const handlePlayPause = () => performBusyAction(async () => {
         if (playbackState === 'playing') {
             pausePlayback();
             setPlaybackState('paused');
@@ -82,15 +82,15 @@ export const ScriptPreview: React.FC<ScriptPreviewProps> = ({ script: initialScr
         }
     });
 
-    const handleStop = () => performBusyAction(() => {
-        stopPlayback();
-        setPlaybackState('stopped');
-        // Do not reset index. User expects to be at the same segment.
+    const handleStop = () => performBusyAction(async () => {
+        await stopPlayback();
+        // The onFinish callback from the service will set the state to 'stopped'.
     });
 
-    const handleSeek = (index: number) => performBusyAction(() => {
+    const handleSeek = (index: number) => performBusyAction(async () => {
         logger.info(`User seeking to segment ${index}.`);
-        stopPlayback(); // Always stop before starting a new playback
+        await stopPlayback();
+        
         setCurrentSegmentIndex(index);
         setPlaybackState('playing');
         playScript(
@@ -175,7 +175,6 @@ export const ScriptPreview: React.FC<ScriptPreviewProps> = ({ script: initialScr
                 onSeek={handleSeek}
                 onSkipToStart={handleSkipToStart}
                 onSkipToEnd={handleSkipToEnd}
-                isBusy={isBusy}
             />
 
             <div className="bg-dark-card border border-dark-border rounded-lg p-6 shadow-lg">
@@ -184,8 +183,8 @@ export const ScriptPreview: React.FC<ScriptPreviewProps> = ({ script: initialScr
                     {script.segments.map((segment, index) => (
                         <div 
                              key={index} 
-                             onClick={() => !isBusy && handleSeek(index)}
-                             className={`p-4 rounded-md transition-all duration-300 ${isBusy ? 'cursor-wait' : 'cursor-pointer'} ${currentSegmentIndex === index && playbackState !== 'stopped' ? 'bg-brand-primary/20 ring-2 ring-brand-primary' : 'bg-dark-bg'}`}
+                             onClick={() => handleSeek(index)}
+                             className={`p-4 rounded-md transition-all duration-300 cursor-pointer ${currentSegmentIndex === index && playbackState !== 'stopped' ? 'bg-brand-primary/20 ring-2 ring-brand-primary' : 'bg-dark-bg'}`}
                         >
                             <div className="flex justify-between items-center mb-2">
                                 <p className="font-bold text-lg text-brand-accent">{config.voiceMapping.get(segment.speaker)?.podcastName || segment.speaker}</p>

@@ -3,7 +3,7 @@ import { browserTextToSpeech } from './browserTtsService';
 import logger from './loggingService';
 
 // --- State ---
-let state: {
+type ServiceState = {
   playbackState: PlaybackState;
   segments: ScriptSegment[];
   voiceMapping: Map<string, VoiceSetting>;
@@ -11,8 +11,10 @@ let state: {
   onFinish: () => void;
   onError: (error: string) => void;
   currentIndex: number;
-} | null = null;
+  stopResolver: (() => void) | null;
+};
 
+let state: ServiceState | null = null;
 let speechPingInterval: number | undefined;
 
 // --- Private Functions ---
@@ -21,7 +23,6 @@ function startSpeechPing() {
   if (speechPingInterval) return;
   logger.info('Starting speech synthesis keep-alive ping.');
   speechPingInterval = window.setInterval(() => {
-    // Only ping if actively speaking. Prevents resuming a user-initiated pause.
     if (state?.playbackState === 'playing' && window.speechSynthesis.speaking) {
         window.speechSynthesis.resume();
     }
@@ -37,47 +38,41 @@ function stopSpeechPing() {
 }
 
 function cleanup() {
-    logger.info('Cleaning up audio service state.');
-    const wasPlaying = state?.playbackState !== 'stopped';
+    if (!state) return;
     
-    // Cancel any ongoing speech
+    logger.info('Cleaning up audio service state.');
+    const wasPlayingOrPaused = state.playbackState === 'playing' || state.playbackState === 'paused';
+    
     if (window.speechSynthesis?.speaking || window.speechSynthesis?.pending) {
         window.speechSynthesis.cancel();
     }
     
     stopSpeechPing();
     
-    if (state) {
-        if (wasPlaying) {
-            state.onFinish();
-        }
-        state = null;
+    if (state.stopResolver) {
+        state.stopResolver();
     }
+    
+    if (wasPlayingOrPaused) {
+        state.onFinish();
+    }
+
+    state = null;
 }
 
 async function playbackLoop() {
     if (!state) return;
 
     for (let i = state.currentIndex; i < state.segments.length; i++) {
-        if (state.playbackState === 'stopped') {
-            logger.info(`Playback loop terminated by stop state at segment ${i}.`);
-            break;
-        }
-
-        // FIX: The while loop was causing a TypeScript error due to incorrect type narrowing across an await.
-        // This refactoring fixes the error and also handles the case where stopPlayback() nullifies the state during a pause.
         while (state?.playbackState === 'paused') {
             await new Promise(resolve => setTimeout(resolve, 100));
+            // FIX: This comparison could fail with some TypeScript versions due to type narrowing.
+            // Changed to break if no longer paused, which covers 'stopped' and 'playing' (resume) states.
+            if (state?.playbackState !== 'paused') break;
         }
 
-        // If stopPlayback() was called, state will be null and we should exit.
-        if (!state) {
-            return;
-        }
-
-        // If state was changed to 'stopped' (e.g., via an error during speech), break the loop.
-        if (state.playbackState === 'stopped') {
-            logger.info(`Playback loop terminated by stop state after pause at segment ${i}.`);
+        if (!state || state.playbackState === 'stopped') {
+            logger.info(`Playback loop terminated by stop state at segment ${i}.`);
             break;
         }
         
@@ -100,17 +95,16 @@ async function playbackLoop() {
                 await browserTextToSpeech(textToSpeak, voiceSetting.voiceId, playbackOptions);
             } catch (e) {
                 const errorMessage = e instanceof Error ? e.message : String(e);
-                 // If the state is 'stopped', it means a `cancel()` was issued, and this "error" is expected.
-                if (state?.playbackState === 'stopped' && errorMessage.includes('interrupted')) {
+                if (state?.playbackState !== 'playing') {
                     logger.info(`Speech for segment ${i} was intentionally interrupted.`);
                     break;
                 } else {
                     logger.error(`Speech synthesis failed for segment ${i}: ${errorMessage}`, e);
                     if (state) {
-                        state.onError(`Speech synthesis failed for segment ${i}: ${errorMessage}`);
+                        state.onError(`Speech synthesis failed: ${errorMessage}`);
                         state.playbackState = 'stopped';
                     }
-                    break; 
+                    break;
                 }
             }
         } else {
@@ -118,9 +112,16 @@ async function playbackLoop() {
         }
     }
 
-    // FIX: This block prevented the onFinish callback from firing correctly on natural playback completion.
-    // Removing it fixes the TS error and a logic bug. cleanup() will now correctly handle the end of playback.
-    cleanup();
+    // Natural end of playback or loop break
+    if (state) {
+        const wasStopped = state.playbackState === 'stopped';
+        cleanup();
+        if (wasStopped) {
+            logger.info('Loop finished due to stop command.');
+        } else {
+            logger.info('Script playback finished naturally.');
+        }
+    }
 }
 
 
@@ -134,8 +135,8 @@ export function playScript(
   onError: (error: string) => void,
   startIndex = 0
 ): void {
-  if (state?.playbackState !== 'stopped') {
-    logger.warn('playScript called while another playback is active. Please stop first.');
+  if (state) {
+    logger.error('playScript called while service is active.');
     return;
   }
   
@@ -154,10 +155,11 @@ export function playScript(
     onFinish,
     onError,
     currentIndex: startIndex,
+    stopResolver: null,
   };
   
   startSpeechPing();
-  playbackLoop(); // This runs asynchronously
+  playbackLoop();
 }
 
 export function pausePlayback(): void {
@@ -176,10 +178,27 @@ export function resumePlayback(): void {
     }
 }
 
-export function stopPlayback(): void {
-  if (state?.playbackState !== 'stopped') {
-    logger.info('Stopping playback.');
-    state.playbackState = 'stopped'; // Set state first
-    cleanup();
+export function stopPlayback(): Promise<void> {
+  if (!state || state.playbackState === 'stopped') {
+    return Promise.resolve();
   }
+
+  return new Promise((resolve) => {
+    logger.info('Requesting playback stop.');
+    if (state) {
+        state.playbackState = 'stopped';
+        state.stopResolver = resolve;
+    }
+    
+    // This will cause the utterance to error with 'interrupted', breaking the loop.
+    window.speechSynthesis.cancel();
+
+    // Fallback timer in case cancel() doesn't fire events correctly (a known browser bug)
+    setTimeout(() => {
+        if (state?.stopResolver) {
+            logger.warn('Stop fallback timer triggered.');
+            cleanup();
+        }
+    }, 250);
+  });
 }
