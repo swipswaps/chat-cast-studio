@@ -1,75 +1,49 @@
-import React, { useState, useEffect, useRef } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import logger, { LogEntry } from '../services/loggingService';
-import { ChevronsUpDownIcon, BotIcon } from './icons';
 
 export const DebugLog: React.FC = () => {
-  const [logs, setLogs] = useState<LogEntry[]>(logger.getLogs());
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const logContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleUpdate = () => {
-      setLogs([...logger.getLogs()]);
-    };
-    logger.subscribe(handleUpdate);
-    return () => logger.unsubscribe(handleUpdate);
+    const unsubscribe = logger.subscribe(setLogs);
+    return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (isOpen && logContainerRef.current) {
-      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
-    }
-  }, [logs, isOpen]);
-
-  const getLogColor = (type: LogEntry['type']) => {
-    switch (type) {
-      case 'error':
-        return 'text-red-400';
-      case 'warn':
-        return 'text-yellow-400';
-      case 'info':
-      default:
-        return 'text-gray-400';
+  const getLogColor = (level: LogEntry['level']) => {
+    switch (level) {
+      case 'error': return 'text-red-400';
+      case 'warn': return 'text-yellow-400';
+      default: return 'text-gray-300';
     }
   };
 
+  if (!isOpen) {
+    return (
+      <button 
+        onClick={() => setIsOpen(true)}
+        className="fixed bottom-4 right-4 bg-dark-card border border-dark-border text-white px-4 py-2 rounded-lg shadow-lg hover:bg-dark-bg"
+      >
+        Show Debug Log
+      </button>
+    );
+  }
+
   return (
-    <div className="fixed bottom-0 right-0 m-4 z-50">
-      <div className={`w-80 sm:w-96 transition-all duration-300 ${isOpen ? 'h-80' : 'h-12'}`}>
-        <div className="bg-dark-card border border-dark-border rounded-lg shadow-2xl flex flex-col h-full">
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="flex items-center justify-between w-full p-3 bg-dark-border rounded-t-lg cursor-pointer"
-            aria-expanded={isOpen}
-            aria-controls="debug-log-content"
-          >
-            <div className="flex items-center">
-              <BotIcon className="w-5 h-5 mr-2 text-brand-accent" />
-              <h3 className="font-semibold text-white">Debug Log</h3>
-            </div>
-            <ChevronsUpDownIcon className={`w-5 h-5 text-gray-400 transform transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-          </button>
-          
-          {isOpen && (
-            <div
-              id="debug-log-content"
-              ref={logContainerRef}
-              className="flex-grow p-2 overflow-y-auto"
-              aria-live="polite"
-            >
-              <ul className="text-xs font-mono space-y-1">
-                {logs.map((log, index) => (
-                  <li key={index} className={`flex items-start ${getLogColor(log.type)}`}>
-                    <span className="flex-shrink-0 mr-2 opacity-60">
-                      {log.timestamp.toLocaleTimeString([], { hour12: false })}
-                    </span>
-                    <span className="break-all">{log.message}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
+    <div className="fixed bottom-0 right-0 h-1/3 w-full md:w-1/2 lg:w-1/3 bg-dark-card border-t-2 border-l-2 border-dark-border shadow-2xl flex flex-col z-50">
+      <div className="p-2 flex justify-between items-center border-b border-dark-border bg-dark-bg">
+        <h3 className="font-bold text-white">Debug Log</h3>
+        <button onClick={() => setIsOpen(false)} className="text-white font-bold text-xl px-2">&times;</button>
+      </div>
+      <div className="flex-1 p-2 overflow-y-auto font-mono text-xs">
+        {logs.slice().reverse().map((log, index) => (
+          <div key={index} className="flex border-b border-dark-border/50 py-1">
+            <span className="text-gray-600 mr-2 flex-shrink-0">{log.timestamp.toLocaleTimeString()}</span>
+            <span className={`${getLogColor(log.level)} mr-2 font-bold w-12 flex-shrink-0`}>{log.level.toUpperCase()}</span>
+            <span className="whitespace-pre-wrap break-all">{log.message}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

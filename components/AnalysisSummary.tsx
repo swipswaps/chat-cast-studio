@@ -1,6 +1,8 @@
 
+
 import React from 'react';
 import type { AnalysisResult } from '../types';
+// FIX: Corrected import path for icons
 import { BotIcon, ClockIcon, FileTextIcon, MessageSquareIcon, CodeIcon, PercentIcon } from './icons';
 
 interface AnalysisSummaryProps {

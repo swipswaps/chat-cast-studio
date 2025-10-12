@@ -1,54 +1,58 @@
-export type LogType = 'info' | 'warn' | 'error';
 
 export interface LogEntry {
-  timestamp: Date;
-  type: LogType;
+  level: 'info' | 'warn' | 'error';
   message: string;
-  details?: any;
+  timestamp: Date;
+  data?: any;
 }
-
-type LogListener = () => void;
 
 class LoggingService {
   private logs: LogEntry[] = [];
-  private listeners: Set<LogListener> = new Set();
-  private maxLogSize = 100;
+  private listeners = new Set<(logs: LogEntry[]) => void>();
 
-  private addLog(type: LogType, message: string, details?: any) {
-    console[type](message, details || '');
-    this.logs.push({ timestamp: new Date(), type, message, details });
-    if (this.logs.length > this.maxLogSize) {
+  private addLog(level: 'info' | 'warn' | 'error', message: string, data?: any) {
+    const entry: LogEntry = { level, message, timestamp: new Date(), data };
+    this.logs.push(entry);
+    
+    // Keep logs from getting too big
+    if (this.logs.length > 200) {
       this.logs.shift();
     }
-    this.notifyListeners();
-  }
-  
-  info(message: string, details?: any) {
-    this.addLog('info', message, details);
+    
+    if (level === 'error') {
+      console.error(`[${entry.timestamp.toLocaleTimeString()}] ${message}`, data);
+    } else if (level === 'warn') {
+      console.warn(`[${entry.timestamp.toLocaleTimeString()}] ${message}`, data);
+    } else {
+      console.log(`[${entry.timestamp.toLocaleTimeString()}] ${message}`, data);
+    }
+    
+    this.listeners.forEach(listener => listener([...this.logs]));
   }
 
-  warn(message: string, details?: any) {
-    this.addLog('warn', message, details);
+  info(message: string, data?: any) {
+    this.addLog('info', message, data);
   }
 
-  error(message: string, details?: any) {
-    this.addLog('error', message, details);
+  warn(message: string, data?: any) {
+    this.addLog('warn', message, data);
+  }
+
+  error(message: string, data?: any) {
+    this.addLog('error', message, data);
+  }
+
+  subscribe(listener: (logs: LogEntry[]) => void): () => void {
+    this.listeners.add(listener);
+    // Immediately send current logs to the new listener
+    listener([...this.logs]); 
+    return () => {
+      this.listeners.delete(listener);
+    };
   }
   
   getLogs(): LogEntry[] {
-    return this.logs;
-  }
-
-  subscribe(listener: LogListener) {
-    this.listeners.add(listener);
-  }
-
-  unsubscribe(listener: LogListener) {
-    this.listeners.delete(listener);
-  }
-
-  private notifyListeners() {
-    this.listeners.forEach(listener => listener());
+    return [...this.logs];
   }
 }
 

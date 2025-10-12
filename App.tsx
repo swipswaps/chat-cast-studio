@@ -1,5 +1,12 @@
-import React, { useState, useCallback } from 'react';
-import type { ProcessedFile, AnalysisResult, PodcastConfig, GeneratedScript } from './types';
+
+import React, { useState, useEffect } from 'react';
+import type {
+  ChatMessage,
+  AnalysisResult,
+  PodcastConfig,
+  GeneratedScript,
+  ProcessedFile
+} from './types';
 import { Header } from './components/Header';
 import { FileUpload } from './components/FileUpload';
 import { AnalysisSummary } from './components/AnalysisSummary';
@@ -7,166 +14,183 @@ import { PodcastSettings } from './components/PodcastSettings';
 import { ScriptPreview } from './components/ScriptPreview';
 import { Loader } from './components/Loader';
 import { DebugLog } from './components/DebugLog';
+import { analyzeChat } from './services/analysisService';
 import { generatePodcastScript } from './services/geminiService';
-import { analyzeChat, analyzeScript } from './services/analysisService';
 import logger from './services/loggingService';
+import { parseFile, parseTextContent } from './services/parserService';
+
+type AppState = 'initial' | 'analyzing' | 'settings' | 'generating' | 'preview';
 
 function App() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState('');
+  const [appState, setAppState] = useState<AppState>('initial');
   const [error, setError] = useState<string | null>(null);
-  
-  // Step 1: File processing
-  const [processedFile, setProcessedFile] = useState<ProcessedFile | null>(null);
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-
-  // Step 2: Script generation
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [podcastConfig, setPodcastConfig] = useState<PodcastConfig | null>(null);
   const [generatedScript, setGeneratedScript] = useState<GeneratedScript | null>(null);
+  
+  // This state is to track projects loaded from a file
+  const [loadedProject, setLoadedProject] = useState<{script: GeneratedScript, config: PodcastConfig | null, analysis: AnalysisResult} | null>(null);
 
-  const handleFileProcessed = useCallback((result: ProcessedFile) => {
-    logger.info('File processed.', result);
-    setError(null);
-    setGeneratedScript(null);
-    setPodcastConfig(null);
-
-    if (result.type === 'chat') {
-        const analysis = analyzeChat(result.messages);
-        setAnalysisResult(analysis);
-    } else if (result.type === 'scriptProject') {
-        setAnalysisResult(result.analysis);
-        setGeneratedScript(result.script);
-        setPodcastConfig(result.config);
-    } else if (result.type === 'legacyScript') {
-        const analysis = analyzeScript(result.script);
-        setAnalysisResult(analysis);
-        setGeneratedScript(result.script);
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(null), 5000);
+      logger.error(error);
+      return () => clearTimeout(timer);
     }
-    setProcessedFile(result);
-  }, []);
+  }, [error]);
+  
+  const resetState = () => {
+    setAppState('initial');
+    setError(null);
+    setChatMessages([]);
+    setAnalysis(null);
+    setPodcastConfig(null);
+    setGeneratedScript(null);
+    setLoadedProject(null);
+    logger.info("Application state has been reset.");
+  };
 
-  const handleConfigSubmit = useCallback(async (config: PodcastConfig) => {
-    if (generatedScript && (processedFile?.type === 'scriptProject' || processedFile?.type === 'legacyScript')) {
-        logger.info("Applying new config to existing script.");
+  const handleFileProcess = (processedFile: ProcessedFile, fileName?: string) => {
+      if (processedFile.type === 'chat') {
+          if (processedFile.messages.length === 0) {
+              setError("The file seems to be empty or in an unsupported chat format.");
+              setAppState('initial');
+              return;
+          }
+          logger.info(`Successfully parsed ${processedFile.messages.length} messages from ${fileName || 'pasted text'}.`);
+          const chatAnalysis = analyzeChat(processedFile.messages);
+          setChatMessages(processedFile.messages);
+          setAnalysis(chatAnalysis);
+          setAppState('settings');
+      } else if (processedFile.type === 'scriptProject' || processedFile.type === 'legacyScript') {
+          logger.info(`Successfully parsed a podcast project file: ${fileName}`);
+          setLoadedProject({
+              script: processedFile.script,
+              config: processedFile.type === 'scriptProject' ? processedFile.config : null,
+              analysis: processedFile.analysis,
+          });
+          setAnalysis(processedFile.analysis);
+          setGeneratedScript(processedFile.script);
+          // if legacy, go to settings to define voices; if full project, go straight to preview
+          setAppState(processedFile.type === 'scriptProject' ? 'preview' : 'settings'); 
+          if (processedFile.type === 'scriptProject') {
+             setPodcastConfig(processedFile.config);
+          }
+      }
+  }
+
+  const handleFileSelected = async (file: File) => {
+    setAppState('analyzing');
+    try {
+      const result = await parseFile(file);
+      handleFileProcess(result, file.name);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'An unknown error occurred.';
+      setError(message);
+      setAppState('initial');
+    }
+  };
+
+  const handleTextPasted = (text: string) => {
+    setAppState('analyzing');
+    try {
+        const result = parseTextContent(text);
+        handleFileProcess(result, 'pasted content');
+    } catch(e) {
+        const message = e instanceof Error ? e.message : 'An unknown error occurred.';
+        setError(message);
+        setAppState('initial');
+    }
+  }
+
+  const handleConfigSubmit = async (config: PodcastConfig) => {
+    setPodcastConfig(config);
+
+    if (loadedProject && generatedScript) {
+        // If we were configuring a loaded script (legacy or re-configuring a full project), just move to preview
+        logger.info("Applying new voice configuration to loaded script.");
+        setAppState('preview');
+        // Ensure the config is updated for the preview
         setPodcastConfig(config);
         return;
     }
-
-    if (processedFile?.type !== 'chat') {
-      logger.warn("handleConfigSubmit called without a chat file to process.");
+    
+    if (chatMessages.length === 0) {
+      setError("Cannot generate script without chat messages.");
       return;
     }
     
-    logger.info('Podcast config submitted. Generating script...', config);
-    setIsLoading(true);
-    setLoadingMessage('Generating podcast script with AI...');
+    setAppState('generating');
     setError(null);
-    setPodcastConfig(config);
-
     try {
-      const script = await generatePodcastScript(processedFile.messages, config);
-      const finalScript = { ...script, id: new Date().toISOString() };
-      setGeneratedScript(finalScript);
-      logger.info('Script generation successful.', finalScript);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred during script generation.';
-      logger.error('Script generation failed.', err);
-      setError(errorMessage);
-    } finally {
-      setIsLoading(false);
+      logger.info("Generating podcast script with Gemini...");
+      const script = await generatePodcastScript(chatMessages, config);
+      setGeneratedScript({ ...script, id: new Date().toISOString() });
+      setAppState('preview');
+      logger.info("Script generation successful.");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'An unknown error occurred during script generation.';
+      setError(message);
+      setAppState('settings'); // Go back to settings on failure
     }
-  }, [processedFile, generatedScript]);
-
-  const handleReset = () => {
-    logger.info('Resetting application state.');
-    setProcessedFile(null);
-    setAnalysisResult(null);
-    setPodcastConfig(null);
-    setGeneratedScript(null);
-    setError(null);
-    setIsLoading(false);
   };
   
-  const handleBackToSettings = () => {
-    logger.info('Returning to settings screen.');
-    // Keep the generated script if we came from a loaded file,
-    // so user can re-assign voices without losing the script.
-    if (processedFile?.type === 'chat') {
-        setGeneratedScript(null);
-    }
-    setPodcastConfig(null);
-  }
-
   const renderContent = () => {
-      if (isLoading) {
-          return <Loader message={loadingMessage} />;
-      }
-
-      if (generatedScript && podcastConfig && analysisResult) {
-          return (
-              <ScriptPreview 
-                  script={generatedScript}
-                  config={podcastConfig}
-                  analysis={analysisResult}
-                  onBack={handleBackToSettings}
-                  setError={setError}
-              />
-          );
-      }
-
-      if (analysisResult) {
-          const hasExistingScript = processedFile?.type === 'scriptProject' || processedFile?.type === 'legacyScript';
-          return (
-              <div className="space-y-8">
-                  <button onClick={handleReset} className="text-sm text-brand-secondary hover:text-brand-primary transition-colors">&larr; Start Over With a New File</button>
-                  <AnalysisSummary analysis={analysisResult} />
-                  <PodcastSettings 
-                    analysis={analysisResult} 
-                    onConfigSubmit={handleConfigSubmit} 
-                    hasExistingScript={hasExistingScript}
-                  />
-              </div>
-          );
-      }
-
-      return (
-          <FileUpload 
-              onFileProcessed={handleFileProcessed}
-              setIsLoading={setIsLoading}
-              setLoadingMessage={setLoadingMessage}
-              setError={setError}
-          />
-      );
-  }
-  
-  const getErrorMessage = (err: any): string => {
-    if (!err) return '';
-    if (typeof err === 'string') return err;
-    if (err instanceof Error) return err.message;
-    try {
-      const str = JSON.stringify(err);
-      if (str === '{}') return 'An unknown error occurred.';
-      return str;
-    } catch {
-      return 'An unknown error occurred.';
+    switch (appState) {
+      case 'initial':
+        return <FileUpload 
+                  onFileSelected={handleFileSelected}
+                  onTextPasted={handleTextPasted}
+                />;
+      case 'analyzing':
+        return <Loader message="Analyzing chat log..." />;
+      case 'settings':
+        if (!analysis) return <p>Error: Analysis data missing.</p>;
+        return (
+          <div className="space-y-6">
+            <AnalysisSummary analysis={analysis} />
+            <PodcastSettings 
+                analysis={analysis} 
+                onConfigSubmit={handleConfigSubmit} 
+                hasExistingScript={!!generatedScript}
+            />
+          </div>
+        );
+      case 'generating':
+        return <Loader message="Generating podcast script with AI..." />;
+      case 'preview':
+        if (!generatedScript || !podcastConfig || !analysis) return <p>Error: Script or configuration data missing.</p>;
+        return <ScriptPreview script={generatedScript} config={podcastConfig} analysis={analysis} onNewScript={resetState} />;
+      default:
+        return <p>Something went wrong.</p>;
     }
-  };
+  }
 
   return (
-    <>
+    <div className="bg-dark-bg min-h-screen text-dark-text-main font-sans">
       <Header />
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto p-4 md:p-8">
         {error && (
-            <div className="bg-red-900/50 border border-red-600 text-white p-4 rounded-lg mb-6" role="alert">
-                <p className="font-bold">An error occurred:</p>
-                <p>{getErrorMessage(error)}</p>
-                 <button onClick={() => setError(null)} className="text-xs mt-2 underline">Dismiss</button>
-            </div>
+          <div className="bg-red-900/50 border border-red-500 text-red-300 px-4 py-3 rounded-lg relative mb-6" role="alert">
+            <strong className="font-bold">Error: </strong>
+            <span className="block sm:inline">{error}</span>
+            <button onClick={() => setError(null)} className="absolute top-0 bottom-0 right-0 px-4 py-3">
+              <span className="text-2xl">&times;</span>
+            </button>
+          </div>
         )}
+        
+        {appState !== 'initial' && (
+          <button onClick={resetState} className="mb-6 text-sm text-brand-secondary hover:underline">
+            &larr; Start Over
+          </button>
+        )}
+        
         {renderContent()}
       </main>
       <DebugLog />
-    </>
+    </div>
   );
 }
 

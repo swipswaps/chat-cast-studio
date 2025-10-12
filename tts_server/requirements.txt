@@ -1,0 +1,20 @@
+# Python libraries for the backend TTS server
+
+# Web framework
+flask
+
+# For making requests to third-party TTS APIs
+requests
+
+# For audio manipulation (concatenating clips)
+pydub
+
+# For managing environment variables (API keys)
+python-dotenv
+
+# Example TTS provider SDK
+elevenlabs
+
+# For running FFMPEG for video generation
+# Note: FFMPEG itself must be installed on the server separately.
+# This is just a conceptual list.

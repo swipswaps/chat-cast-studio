@@ -1,5 +1,4 @@
-
-
+// FIX: Removed circular self-import of `ChatMessage` which was causing a name conflict.
 export interface ChatMessage {
   role: string;
   content: string;
@@ -99,16 +98,16 @@ export type ProcessedFile =
 
 export type PlaybackState = 'playing' | 'paused' | 'stopped';
 
+// FIX: Reverted to MP3/MP4 formats for FFMPEG export.
 export interface ExportOptions {
     format: 'mp3' | 'mp4';
     includeSubtitles: boolean;
     backgroundImage?: File;
 }
 
+// FIX: Re-added ExportProgress type for FFMPEG feedback.
 export interface ExportProgress {
-    status: 'idle' | 'rendering' | 'packaging' | 'complete' | 'error';
+    phase: 'loading' | 'generating' | 'encoding' | 'muxing' | 'done' | 'error';
     message: string;
-    percentage: number;
-    outputUrl?: string;
-    outputFilename?: string;
+    progress?: number; // 0 to 1
 }

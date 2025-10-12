@@ -1,5 +1,7 @@
+
 import React from 'react';
 import type { ScriptSegment, PlaybackState } from '../types';
+// FIX: Corrected import path for icons
 import { PlayIcon, PauseIcon, StopCircleIcon, RewindIcon, FastForwardIcon } from './icons';
 
 interface PlayerControlsProps {

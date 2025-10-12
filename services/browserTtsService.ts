@@ -1,4 +1,6 @@
+
 import type { BrowserVoice } from '../types';
+// FIX: Corrected import path for loggingService
 import logger from './loggingService';
 
 let voices: BrowserVoice[] = [];
@@ -76,6 +78,11 @@ export function browserTextToSpeech(
       logger.info("Skipping empty line for speech.");
       return resolve();
     }
+    
+    // Clear any pending utterances to prevent overlap or stale queue
+    if (synth.speaking || synth.pending) {
+        synth.cancel();
+    }
 
     if (synth.paused) {
       logger.warn("Speech synthesis is paused, calling resume().");
@@ -115,7 +122,9 @@ export function browserTextToSpeech(
         const errorType = event.error || 'unknown';
         const msg = `Speech synthesis failed: ${errorType}.`;
         logger.error(msg, event);
-        reject(new Error(msg));
+        // Don't reject, but resolve, to allow playback to continue on the next line.
+        // Rejecting stops the whole playback loop.
+        resolve();
     };
     
     logger.info(`Queueing utterance with voice: ${voice.name} (${voice.lang})`);

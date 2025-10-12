@@ -1,149 +1,83 @@
-import React, { useState, useCallback, useRef } from 'react';
+
+import React, { useState, useCallback } from 'react';
+import { useDropzone } from 'react-dropzone';
 import type { ProcessedFile } from '../types';
 import { parseFile, parseTextContent } from '../services/parserService';
 import { EXAMPLE_CHAT_JSON, EXAMPLE_CHAT_TEXT } from '../constants';
-import { FileUpIcon, ClipboardPasteIcon, BotIcon } from './icons';
+import { UploadCloudIcon, FileIcon } from './icons';
 
 interface FileUploadProps {
-  onFileProcessed: (result: ProcessedFile) => void;
-  setIsLoading: (loading: boolean) => void;
-  setLoadingMessage: (message: string) => void;
-  setError: (error: string) => void;
+  onFileSelected: (file: File) => void;
+  onTextPasted: (text: string) => void;
 }
 
-export const FileUpload: React.FC<FileUploadProps> = ({ onFileProcessed, setIsLoading, setLoadingMessage, setError }) => {
+
+export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelected, onTextPasted }) => {
   const [pastedText, setPastedText] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
 
-  const processFile = useCallback(async (file: File) => {
-    setIsLoading(true);
-    setLoadingMessage('Parsing file...');
-    setError('');
-    try {
-      const result = await parseFile(file);
-      onFileProcessed(result);
-    } catch (err) {
-      console.error(err);
-      setError(err instanceof Error ? err.message : 'An unknown error occurred during parsing.');
-    } finally {
-      setIsLoading(false);
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    if (acceptedFiles.length > 0) {
+      setFileName(acceptedFiles[0].name);
+      onFileSelected(acceptedFiles[0]);
     }
-  }, [onFileProcessed, setIsLoading, setLoadingMessage, setError]);
+  }, [onFileSelected]);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      processFile(file);
-    }
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'text/plain': ['.txt'],
+      'application/json': ['.json'],
+      'application/zip': ['.zip'],
+    },
+    multiple: false,
+  });
+
+  const handlePaste = () => {
+    if (!pastedText.trim()) return;
+    onTextPasted(pastedText);
   };
-
-  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-  };
-
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const file = event.dataTransfer.files?.[0];
-    if (file) {
-      processFile(file);
-    }
-  };
-
-  const handlePasteSubmit = () => {
-    if (!pastedText.trim()) {
-      setError('Pasted text cannot be empty.');
-      return;
-    }
-    setIsLoading(true);
-    setLoadingMessage('Parsing pasted text...');
-    setError('');
-    try {
-        const result = parseTextContent(pastedText);
-        onFileProcessed(result);
-    } catch(err) {
-        console.error(err);
-        setError(err instanceof Error ? err.message : 'Failed to parse pasted text.');
-    } finally {
-        setIsLoading(false);
-    }
-  };
-
-  const loadExample = (content: string, type: 'json' | 'text') => {
-    setIsLoading(true);
-    setLoadingMessage('Loading example...');
-    setError('');
-    try {
-        const result = parseTextContent(content, type);
-        onFileProcessed(result);
-    } catch (err) {
-        console.error(err);
-        setError(err instanceof Error ? err.message : 'Failed to load example.');
-    } finally {
-        setIsLoading(false);
-    }
-  };
+  
+  const loadExample = (content: string) => {
+      setPastedText(content);
+  }
 
   return (
-    <div className="space-y-8">
-      <div 
-        className="relative border-2 border-dashed border-dark-border rounded-lg p-8 text-center cursor-pointer hover:border-brand-secondary transition-colors"
-        onClick={() => fileInputRef.current?.click()}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-      >
-        <div className="flex flex-col items-center text-dark-text-secondary">
-          <FileUpIcon className="w-12 h-12 mb-4 text-brand-accent"/>
-          <p className="font-semibold text-lg">Drag & drop your chat log or podcast project here</p>
-          <p className="text-sm">(.txt, .json, or .zip)</p>
-          <p className="mt-4">or <span className="text-brand-secondary font-bold">click to browse</span></p>
-        </div>
-        <input
-          ref={fileInputRef}
-          type="file"
-          className="hidden"
-          accept=".txt,.json,.zip"
-          onChange={handleFileChange}
-        />
+    <div className="space-y-6">
+      <div {...getRootProps()} className={`p-8 border-2 border-dashed rounded-lg text-center cursor-pointer transition-colors ${isDragActive ? 'border-brand-primary bg-dark-bg' : 'border-dark-border hover:border-brand-secondary'}`}>
+        <input {...getInputProps()} />
+        <UploadCloudIcon className="w-12 h-12 mx-auto text-dark-text-secondary" />
+        <p className="mt-4 text-white">Drag &amp; drop a chat log file here</p>
+        <p className="text-sm text-dark-text-secondary">(.json, .txt, or .zip)</p>
+        <button type="button" className="mt-4 px-4 py-2 bg-brand-secondary text-white rounded-md text-sm">Or Select File</button>
+        {fileName && <p className="mt-4 text-sm text-green-400 flex items-center justify-center"><FileIcon className="w-4 h-4 mr-2" />{fileName}</p>}
       </div>
 
-      <div className="relative flex items-center">
-        <div className="flex-grow border-t border-dark-border"></div>
-        <span className="flex-shrink mx-4 text-dark-text-secondary">OR</span>
-        <div className="flex-grow border-t border-dark-border"></div>
+      <div className="relative">
+          <div className="absolute inset-0 flex items-center" aria-hidden="true">
+              <div className="w-full border-t border-dark-border" />
+          </div>
+          <div className="relative flex justify-center">
+              <span className="bg-dark-card px-2 text-sm text-dark-text-secondary">OR</span>
+          </div>
       </div>
 
-      <div className="bg-dark-card border border-dark-border rounded-lg p-6">
-        <h3 className="text-lg font-semibold flex items-center mb-3">
-          <ClipboardPasteIcon className="w-5 h-5 mr-2 text-brand-accent"/>
-          Paste Chat Log
-        </h3>
+      <div className="bg-dark-bg border border-dark-border rounded-lg p-4">
         <textarea
           value={pastedText}
           onChange={(e) => setPastedText(e.target.value)}
-          placeholder="Paste your raw chat log content here..."
+          placeholder="Paste your chat log content here..."
           rows={8}
-          className="w-full p-3 bg-dark-bg border border-dark-border rounded-md focus:ring-2 focus:ring-brand-secondary focus:outline-none transition-shadow"
+          className="w-full p-2 bg-dark-card border border-dark-border rounded-md focus:ring-2 focus:ring-brand-secondary"
         />
-        <button
-          onClick={handlePasteSubmit}
-          disabled={!pastedText.trim()}
-          className="mt-4 bg-brand-secondary hover:bg-brand-primary text-white font-bold py-2 px-4 rounded-md transition-all duration-300 w-full sm:w-auto disabled:bg-gray-600 disabled:cursor-not-allowed"
-        >
-          Process Pasted Text
-        </button>
-      </div>
-
-      <div className="bg-dark-card border border-dark-border rounded-lg p-6">
-        <h3 className="text-lg font-semibold flex items-center mb-3">
-          <BotIcon className="w-5 h-5 mr-2 text-brand-accent"/>
-          Don't have a log? Try an example
-        </h3>
-        <div className="flex flex-col sm:flex-row gap-4 mt-2">
-          <button onClick={() => loadExample(EXAMPLE_CHAT_JSON, 'json')} className="flex-1 bg-dark-border hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors">
-            Load Tech Example (.json)
-          </button>
-          <button onClick={() => loadExample(EXAMPLE_CHAT_TEXT, 'text')} className="flex-1 bg-dark-border hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md transition-colors">
-            Load Simple Example (.txt)
+        <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="text-sm text-dark-text-secondary">
+                Load an example:
+                <button onClick={() => loadExample(EXAMPLE_CHAT_JSON)} className="ml-2 text-brand-secondary hover:underline">JSON</button>
+                <button onClick={() => loadExample(EXAMPLE_CHAT_TEXT)} className="ml-2 text-brand-secondary hover:underline">Text</button>
+            </div>
+          <button onClick={handlePaste} className="px-6 py-2 bg-brand-primary text-white font-bold rounded-md hover:bg-brand-secondary">
+            Process Pasted Text
           </button>
         </div>
       </div>

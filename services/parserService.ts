@@ -1,5 +1,6 @@
+
 import JSZip from 'jszip';
-import type { ChatMessage, ProcessedFile, PodcastProjectFile, PodcastConfig, GeneratedScript } from '../types';
+import type { ChatMessage, ProcessedFile, PodcastProjectFile, PodcastConfig, GeneratedScript, SerializablePodcastConfig, AnalysisResult } from '../types';
 import { analyzeScript } from './analysisService';
 
 const CODE_FENCE = '```';
@@ -194,4 +195,33 @@ function processCodeBlocks(messages: ChatMessage[]): ChatMessage[] {
     });
   });
   return processed;
+}
+
+/**
+ * Serializes the current project state and downloads it as a JSON file.
+ */
+export function saveProjectToFile(script: GeneratedScript, config: PodcastConfig, analysis: AnalysisResult) {
+  const serializableConfig: SerializablePodcastConfig = {
+    ...config,
+    voiceMapping: Array.from(config.voiceMapping.entries()),
+  };
+
+  const projectFile: PodcastProjectFile = {
+    version: '1.1', // Denotes a potentially edited project
+    generatedScript: script,
+    podcastConfig: serializableConfig,
+    analysisResult: analysis,
+  };
+
+  const blob = new Blob([JSON.stringify(projectFile, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  // Sanitize title for use as a filename
+  const safeTitle = (script.title || 'podcast_project').replace(/[\/\\?%*:|"<>]/g, '-');
+  a.download = `${safeTitle}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
