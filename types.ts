@@ -54,7 +54,14 @@ export interface ScriptSegment {
   line: string;
   sfx?: string;
   type: 'intro' | 'hook' | 'segment_host' | 'segment_guest' | 'transition' | 'code_explanation' | 'outro' | 'music_bridge';
+  
+  // Editable properties for voice synthesis
+  editedLine?: string; // If present, this text is used for speech instead of 'line'.
+  rate?: number;       // Speech rate (0.1 to 10, default 1).
+  pitch?: number;      // Speech pitch (0 to 2, default 1).
+  volume?: number;     // Speech volume (0 to 1, default 1).
 }
+
 
 export interface GeneratedScript {
   id: string;

@@ -191,3 +191,22 @@ export const AudioLinesIcon: React.FC<IconProps> = (props) => (
         <path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/>
     </svg>
 );
+
+export const PencilIcon: React.FC<IconProps> = (props) => (
+    <svg {...defaultProps} {...props}>
+        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+        <path d="m15 5 4 4"/>
+    </svg>
+);
+
+export const ChevronLeftIcon: React.FC<IconProps> = (props) => (
+    <svg {...defaultProps} {...props}>
+        <path d="m15 18-6-6 6-6"/>
+    </svg>
+);
+
+export const ChevronRightIcon: React.FC<IconProps> = (props) => (
+    <svg {...defaultProps} {...props}>
+        <path d="m9 18 6-6-6-6"/>
+    </svg>
+);

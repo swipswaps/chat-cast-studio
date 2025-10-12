@@ -56,9 +56,14 @@ export function getBrowserVoices(): Promise<BrowserVoice[]> {
  * Uses the browser's Speech Synthesis API to speak text.
  * @param text The text to speak.
  * @param voiceURI The URI of the voice to use.
+ * @param options An object with optional rate, pitch, and volume properties.
  * @returns A promise that resolves when the speech has finished.
  */
-export function browserTextToSpeech(text: string, voiceURI: string): Promise<void> {
+export function browserTextToSpeech(
+    text: string, 
+    voiceURI: string,
+    options: { rate?: number; pitch?: number; volume?: number; } = {}
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const synth = window.speechSynthesis;
     if (typeof synth === 'undefined') {
@@ -72,8 +77,6 @@ export function browserTextToSpeech(text: string, voiceURI: string): Promise<voi
       return resolve();
     }
 
-    // WAKE UP CHROME: This is a crucial step for Chrome. If the engine is paused,
-    // new utterances might be queued but never spoken. Calling resume() wakes it up.
     if (synth.paused) {
       logger.warn("Speech synthesis is paused, calling resume().");
       synth.resume();
@@ -95,6 +98,9 @@ export function browserTextToSpeech(text: string, voiceURI: string): Promise<voi
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.voice = voice;
+    utterance.rate = options.rate ?? 1;
+    utterance.pitch = options.pitch ?? 1;
+    utterance.volume = options.volume ?? 1;
     
     utterance.onstart = () => {
       logger.info(`Speaking: "${text.substring(0, 50)}..."`);

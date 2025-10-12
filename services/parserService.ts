@@ -44,8 +44,8 @@ function parseJson(content: string): ProcessedFile {
   try {
     const data = JSON.parse(content);
 
-    // Check 1: New, full podcast project file
-    if (data.version === '1.0' && data.generatedScript && data.podcastConfig && data.analysisResult) {
+    // Check 1: New, full podcast project file (v1.0 or v1.1 for edited)
+    if ((data.version === '1.0' || data.version === '1.1') && data.generatedScript && data.podcastConfig && data.analysisResult) {
         const projectFile = data as PodcastProjectFile;
         const config: PodcastConfig = {
             ...projectFile.podcastConfig,

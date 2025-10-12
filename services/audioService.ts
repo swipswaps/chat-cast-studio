@@ -8,6 +8,7 @@ let onSegmentStartCallback: ((index: number) => boolean) | null = null;
 let onFinishCallback: (() => void) | null = null;
 let onErrorCallback: ((error: string) => void) | null = null;
 let currentCancelResolver: (() => void) | null = null;
+let stopPromiseResolver: (() => void) | null = null;
 
 // Workaround for a long-standing Chrome bug where speech synthesis can go silent.
 let speechPingInterval: number | undefined;
@@ -39,22 +40,39 @@ function stopSpeechPing() {
   }
 }
 
-function cleanupState() {
+function cleanupState(wasStoppedByUser: boolean) {
     logger.info('Cleaning up audio service state.');
+    
+    // Only call the finish callback if one is attached.
+    if (onFinishCallback) {
+        if(wasStoppedByUser) {
+            logger.info('Stop initiated by user, calling onFinish to reset UI.');
+        } else {
+             logger.info('Script playback finished naturally.');
+        }
+        onFinishCallback();
+    }
+
     isPlaying = false;
-    stopFlag = true;
+    stopFlag = false; // Reset for the next play
     stopSpeechPing();
     
     // Unblock any pending playback promise
     if (currentCancelResolver) {
         logger.warn('Force-resolving a hanging playback promise.');
         currentCancelResolver();
-        currentCancelResolver = null;
+    }
+    
+    // Unblock any pending stop promise
+    if (stopPromiseResolver) {
+        stopPromiseResolver();
     }
 
+    currentCancelResolver = null;
     onSegmentStartCallback = null;
     onFinishCallback = null;
     onErrorCallback = null;
+    stopPromiseResolver = null;
 }
 
 export async function playScript(
@@ -62,11 +80,13 @@ export async function playScript(
   voiceMapping: Map<string, VoiceSetting>,
   onSegmentStart: (index: number) => boolean,
   onFinish: () => void,
-  onError: (error: string) => void
+  onError: (error: string) => void,
+  startIndex = 0
 ) {
   if (isPlaying) {
-    logger.warn('playScript called while already playing. Stopping previous playback.');
-    stopPlayback();
+    logger.warn('playScript called while already playing. Awaiting stop...');
+    // Don't trigger the onFinish callback, as a new playback is starting immediately.
+    await stopPlayback(false);
   }
   
   if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -74,18 +94,19 @@ export async function playScript(
     window.speechSynthesis.cancel();
   }
   
-  logger.info(`Starting script playback with ${segments.length} segments.`);
+  logger.info(`Starting script playback with ${segments.length} segments from index ${startIndex}.`);
   isPlaying = true;
-  stopFlag = false;
+  stopFlag = false; // Ensure stop flag is reset before starting
   onSegmentStartCallback = onSegmentStart;
   onFinishCallback = onFinish;
   onErrorCallback = onError;
   startSpeechPing();
 
-  for (let i = 0; i < segments.length; i++) {
+  for (let i = startIndex; i < segments.length; i++) {
     if (stopFlag) {
       logger.info(`Playback stopped at segment ${i}.`);
-      break;
+      cleanupState(true);
+      return;
     }
 
     const segment = segments[i];
@@ -94,12 +115,18 @@ export async function playScript(
 
     if (onSegmentStartCallback && !onSegmentStartCallback(i)) {
       logger.info(`onSegmentStart callback returned false. Stopping playback.`);
-      stopFlag = true;
-      break;
+      cleanupState(true);
+      return;
     }
 
     if (voiceSetting?.voiceId) {
-      const playbackPromise = browserTextToSpeech(segment.line, voiceSetting.voiceId);
+      const textToSpeak = segment.editedLine ?? segment.line.replace(/`/g, '');
+      const playbackOptions = {
+        rate: segment.rate,
+        pitch: segment.pitch,
+        volume: segment.volume,
+      };
+      const playbackPromise = browserTextToSpeech(textToSpeak, voiceSetting.voiceId, playbackOptions);
       const cancelPromise = new Promise<void>(resolve => {
         currentCancelResolver = resolve;
       });
@@ -107,12 +134,26 @@ export async function playScript(
       try {
         await Promise.race([playbackPromise, cancelPromise]);
       } catch (e) {
-        const errorMessage = e instanceof Error ? e.message : 'An unknown playback error occurred.';
+        if (stopFlag) {
+          // This is an expected "interrupted" error from stopPlayback cancelling the synth.
+          logger.info(`Speech for segment ${i} was interrupted by stop request.`);
+          cleanupState(true);
+          return;
+        }
+
+        let errorMessage = 'An unknown playback error occurred.';
+        if (e instanceof Error) {
+            errorMessage = e.message;
+        } else if (typeof e === 'string') {
+            errorMessage = e;
+        } else {
+            errorMessage = JSON.stringify(e);
+        }
         logger.error(`Speech synthesis failed for segment ${i}: ${errorMessage}`, e);
         if (onErrorCallback) {
           onErrorCallback(errorMessage);
         }
-        cleanupState(); // Ensure we stop fully on error
+        cleanupState(false); // Ensure we stop fully on error
         return; // Exit the loop and function
       } finally {
         currentCancelResolver = null;
@@ -123,33 +164,38 @@ export async function playScript(
   }
   
   if (!stopFlag) {
-    logger.info('Script playback finished naturally.');
-    if (onFinishCallback) {
-      onFinishCallback();
-    }
+    cleanupState(false);
   }
-  
-  cleanupState();
 }
 
-export function stopPlayback() {
+
+export function stopPlayback(shouldCallback = true): Promise<void> {
   if (!isPlaying) {
-    return;
+    return Promise.resolve();
   }
-  logger.info('stopPlayback called.');
-  stopFlag = true;
-  if (typeof window !== 'undefined' && window.speechSynthesis) {
-      logger.info('Cancelling active speech synthesis.');
-      window.speechSynthesis.cancel();
-  }
-
-  const wasPlaying = isPlaying;
   
-  // Call the finish callback immediately to update UI, before cleanup
-  if (wasPlaying && onFinishCallback) { 
-    logger.info('Stop initiated by user, calling onFinish to reset UI.');
-    onFinishCallback();
-  }
+  logger.info('stopPlayback called.');
+  
+  return new Promise((resolve) => {
+    stopPromiseResolver = resolve;
+    
+    // This is the signal for the main loop to stop.
+    stopFlag = true;
 
-  cleanupState();
+    if (!shouldCallback) {
+        onFinishCallback = null;
+    }
+
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+        logger.info('Cancelling active speech synthesis.');
+        window.speechSynthesis.cancel();
+    }
+    
+    // The cancel() call above will cause the awaited browserTextToSpeech promise to reject,
+    // which is caught in the main loop and triggers the cleanup, which then resolves this promise.
+    // We also resolve the current cancel promise as a fallback.
+    if (currentCancelResolver) {
+        currentCancelResolver();
+    }
+  });
 }
