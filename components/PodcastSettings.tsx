@@ -7,11 +7,12 @@ import { SparklesIcon, SlidersHorizontalIcon, MicIcon } from './icons';
 interface PodcastSettingsProps {
   analysis: AnalysisResult;
   onConfigSubmit: (config: PodcastConfig) => void;
+  hasExistingScript?: boolean;
 }
 
 const DEFAULT_PODCAST_NAMES = ['Host', 'Guest', 'Narrator', 'Analyst', 'Expert'];
 
-export const PodcastSettings: React.FC<PodcastSettingsProps> = ({ analysis, onConfigSubmit }) => {
+export const PodcastSettings: React.FC<PodcastSettingsProps> = ({ analysis, onConfigSubmit, hasExistingScript = false }) => {
   const [styleId, setStyleId] = useState(PODCAST_STYLES[0].id);
   const [technicalityId, setTechnicalityId] = useState(TECHNICALITY_LEVELS[1].id);
   const [includeMusic, setIncludeMusic] = useState(true);
@@ -23,8 +24,12 @@ export const PodcastSettings: React.FC<PodcastSettingsProps> = ({ analysis, onCo
   useEffect(() => {
     const initialMapping = new Map<string, VoiceSetting>();
     analysis.speakers.forEach((speaker, index) => {
+      // For legacy scripts, the speaker name might already be the desired podcast name.
+      const defaultName = DEFAULT_PODCAST_NAMES.find(name => name.toLowerCase() === speaker.toLowerCase()) 
+                            || DEFAULT_PODCAST_NAMES[index] 
+                            || `Speaker ${index + 1}`;
       initialMapping.set(speaker, {
-        podcastName: DEFAULT_PODCAST_NAMES[index] || `Speaker ${index + 1}`,
+        podcastName: defaultName,
         voiceId: '',
       });
     });
@@ -40,7 +45,8 @@ export const PodcastSettings: React.FC<PodcastSettingsProps> = ({ analysis, onCo
 
         // Set default voices once loaded
         setVoiceMapping(prevMapping => {
-          const newMapping = new Map(prevMapping);
+          // FIX: Explicitly type the new Map to prevent TypeScript from inferring values as 'unknown'.
+          const newMapping = new Map<string, VoiceSetting>(prevMapping);
           let browserVoiceIndex = 0;
           newMapping.forEach((setting, originalRole) => {
             if (!setting.voiceId && browser.length > 0) {
@@ -66,7 +72,8 @@ export const PodcastSettings: React.FC<PodcastSettingsProps> = ({ analysis, onCo
     value: string
   ) => {
     setVoiceMapping(prev => {
-      const newMapping = new Map(prev);
+      // FIX: Explicitly type the new Map to prevent TypeScript from inferring values as 'unknown'.
+      const newMapping = new Map<string, VoiceSetting>(prev);
       const currentSetting = newMapping.get(originalRole);
       if (currentSetting) {
         const updatedSetting = { ...currentSetting, [field]: value };
@@ -100,21 +107,33 @@ export const PodcastSettings: React.FC<PodcastSettingsProps> = ({ analysis, onCo
       <div className="bg-dark-card border border-dark-border rounded-lg p-6 shadow-lg">
         <h2 className="text-2xl font-bold mb-4 flex items-center"><SlidersHorizontalIcon className="w-6 h-6 mr-3 text-brand-accent" />Podcast Settings</h2>
         
-        <div className="mb-6">
-          <label htmlFor="style" className="block text-lg font-semibold mb-2">Podcast Style</label>
-          <select id="style" value={styleId} onChange={e => setStyleId(e.target.value)} className="w-full p-3 bg-dark-bg border border-dark-border rounded-md focus:ring-2 focus:ring-brand-secondary focus:outline-none">
-            {PODCAST_STYLES.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-          <p className="text-sm text-dark-text-secondary mt-2">{selectedStyle?.description}</p>
-        </div>
+        {hasExistingScript ? (
+           <div className="bg-dark-bg border border-dark-border rounded-md p-4">
+            <h3 className="font-semibold text-lg text-white">Script Style</h3>
+            <p className="text-dark-text-secondary mt-1">
+              Style and Technicality settings are embedded in the loaded script and cannot be changed.
+              To generate a new script with different settings, please start over with the original chat log.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="mb-6">
+              <label htmlFor="style" className="block text-lg font-semibold mb-2">Podcast Style</label>
+              <select id="style" value={styleId} onChange={e => setStyleId(e.target.value)} className="w-full p-3 bg-dark-bg border border-dark-border rounded-md focus:ring-2 focus:ring-brand-secondary focus:outline-none">
+                {PODCAST_STYLES.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+              <p className="text-sm text-dark-text-secondary mt-2">{selectedStyle?.description}</p>
+            </div>
 
-        <div>
-          <label htmlFor="technicality" className="block text-lg font-semibold mb-2">Technicality Level</label>
-          <select id="technicality" value={technicalityId} onChange={e => setTechnicalityId(e.target.value)} className="w-full p-3 bg-dark-bg border border-dark-border rounded-md focus:ring-2 focus:ring-brand-secondary focus:outline-none">
-            {TECHNICALITY_LEVELS.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
-          <p className="text-sm text-dark-text-secondary mt-2">{selectedTechLevel?.description}</p>
-        </div>
+            <div>
+              <label htmlFor="technicality" className="block text-lg font-semibold mb-2">Technicality Level</label>
+              <select id="technicality" value={technicalityId} onChange={e => setTechnicalityId(e.target.value)} className="w-full p-3 bg-dark-bg border border-dark-border rounded-md focus:ring-2 focus:ring-brand-secondary focus:outline-none">
+                {TECHNICALITY_LEVELS.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+              <p className="text-sm text-dark-text-secondary mt-2">{selectedTechLevel?.description}</p>
+            </div>
+          </>
+        )}
       </div>
 
       {/* --- Voice Casting --- */}
@@ -126,7 +145,7 @@ export const PodcastSettings: React.FC<PodcastSettingsProps> = ({ analysis, onCo
           {Array.from(voiceMapping.entries()).map(([originalRole, setting]) => (
             <div key={originalRole} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-dark-bg rounded-md border border-dark-border">
               <div>
-                <label className="block text-sm font-medium text-dark-text-secondary">Original Role</label>
+                <label className="block text-sm font-medium text-dark-text-secondary">Original Speaker</label>
                 <p className="font-bold capitalize">{originalRole}</p>
               </div>
               <div>
@@ -163,21 +182,30 @@ export const PodcastSettings: React.FC<PodcastSettingsProps> = ({ analysis, onCo
       {/* --- Production Details --- */}
       <div className="bg-dark-card border border-dark-border rounded-lg p-6 shadow-lg">
           <h2 className="text-2xl font-bold mb-4">Production Details</h2>
-          <div className="flex items-center space-x-8">
-              <label className="flex items-center cursor-pointer">
-                  <input type="checkbox" checked={includeMusic} onChange={e => setIncludeMusic(e.target.checked)} className="form-checkbox h-5 w-5 text-brand-secondary bg-dark-bg border-dark-border rounded focus:ring-brand-secondary"/>
-                  <span className="ml-2 text-white">Include Background Music</span>
-              </label>
-              <label className="flex items-center cursor-pointer">
-                  <input type="checkbox" checked={includeSfx} onChange={e => setIncludeSfx(e.target.checked)} className="form-checkbox h-5 w-5 text-brand-secondary bg-dark-bg border-dark-border rounded focus:ring-brand-secondary"/>
-                  <span className="ml-2 text-white">Include Sound Effects</span>
-              </label>
-          </div>
+          {hasExistingScript ? (
+            <div className="bg-dark-bg border border-dark-border rounded-md p-4">
+                <h3 className="font-semibold text-lg text-white">Music & SFX</h3>
+                <p className="text-dark-text-secondary mt-1">
+                    Music and sound effect cues are part of the loaded script. To generate a version without them, please start over with the original chat log.
+                </p>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-8">
+                <label className="flex items-center cursor-pointer">
+                    <input type="checkbox" checked={includeMusic} onChange={e => setIncludeMusic(e.target.checked)} className="form-checkbox h-5 w-5 text-brand-secondary bg-dark-bg border-dark-border rounded focus:ring-brand-secondary" />
+                    <span className="ml-2 text-white">Include Background Music</span>
+                </label>
+                <label className="flex items-center cursor-pointer">
+                    <input type="checkbox" checked={includeSfx} onChange={e => setIncludeSfx(e.target.checked)} className="form-checkbox h-5 w-5 text-brand-secondary bg-dark-bg border-dark-border rounded focus:ring-brand-secondary" />
+                    <span className="ml-2 text-white">Include Sound Effects</span>
+                </label>
+            </div>
+          )}
       </div>
 
       <button type="submit" className="w-full bg-brand-primary hover:bg-brand-secondary text-white font-bold py-3 px-6 rounded-lg text-lg flex items-center justify-center transition-all duration-300">
         <SparklesIcon className="w-6 h-6 mr-2" />
-        Generate Podcast Script
+        {hasExistingScript ? 'Apply & Preview Script' : 'Generate Podcast Script'}
       </button>
     </form>
   );

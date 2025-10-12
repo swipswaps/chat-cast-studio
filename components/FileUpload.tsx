@@ -1,12 +1,11 @@
-
 import React, { useState, useCallback, useRef } from 'react';
-import type { ChatMessage } from '../types';
+import type { ProcessedFile } from '../types';
 import { parseFile, parseTextContent } from '../services/parserService';
 import { EXAMPLE_CHAT_JSON, EXAMPLE_CHAT_TEXT } from '../constants';
 import { FileUpIcon, ClipboardPasteIcon, BotIcon } from './icons';
 
 interface FileUploadProps {
-  onFileProcessed: (messages: ChatMessage[]) => void;
+  onFileProcessed: (result: ProcessedFile) => void;
   setIsLoading: (loading: boolean) => void;
   setLoadingMessage: (message: string) => void;
   setError: (error: string) => void;
@@ -18,11 +17,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileProcessed, setIsLo
 
   const processFile = useCallback(async (file: File) => {
     setIsLoading(true);
-    setLoadingMessage('Parsing chat log...');
+    setLoadingMessage('Parsing file...');
     setError('');
     try {
-      const messages = await parseFile(file);
-      onFileProcessed(messages);
+      const result = await parseFile(file);
+      onFileProcessed(result);
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : 'An unknown error occurred during parsing.');
@@ -59,8 +58,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileProcessed, setIsLo
     setLoadingMessage('Parsing pasted text...');
     setError('');
     try {
-        const messages = parseTextContent(pastedText);
-        onFileProcessed(messages);
+        const result = parseTextContent(pastedText);
+        onFileProcessed(result);
     } catch(err) {
         console.error(err);
         setError(err instanceof Error ? err.message : 'Failed to parse pasted text.');
@@ -74,8 +73,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileProcessed, setIsLo
     setLoadingMessage('Loading example...');
     setError('');
     try {
-        const messages = parseTextContent(content, type);
-        onFileProcessed(messages);
+        const result = parseTextContent(content, type);
+        onFileProcessed(result);
     } catch (err) {
         console.error(err);
         setError(err instanceof Error ? err.message : 'Failed to load example.');
@@ -94,7 +93,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileProcessed, setIsLo
       >
         <div className="flex flex-col items-center text-dark-text-secondary">
           <FileUpIcon className="w-12 h-12 mb-4 text-brand-accent"/>
-          <p className="font-semibold text-lg">Drag & drop your chat log file here</p>
+          <p className="font-semibold text-lg">Drag & drop your chat log or podcast project here</p>
           <p className="text-sm">(.txt, .json, or .zip)</p>
           <p className="mt-4">or <span className="text-brand-secondary font-bold">click to browse</span></p>
         </div>

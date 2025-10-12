@@ -1,4 +1,5 @@
 import type { BrowserVoice } from '../types';
+import logger from './loggingService';
 
 let voices: BrowserVoice[] = [];
 
@@ -9,28 +10,27 @@ let voices: BrowserVoice[] = [];
 export function getBrowserVoices(): Promise<BrowserVoice[]> {
   return new Promise((resolve, reject) => {
     if (typeof window.speechSynthesis === 'undefined') {
+        logger.error("Browser Speech Synthesis API not supported.");
         return reject(new Error("Browser Speech Synthesis API not supported."));
     }
 
-    // Fix: `getVoices` now returns a boolean to indicate success, allowing for proper conditional checks.
-    // The call to `resolve` returns `void`, which cannot be used in a truthiness check.
     const getVoices = () => {
         const allVoices = window.speechSynthesis.getVoices();
         if (allVoices.length) {
             voices = allVoices.map(v => ({ name: v.name, lang: v.lang, voiceURI: v.voiceURI }));
+            logger.info(`Loaded ${voices.length} browser voices.`);
             resolve(voices);
             return true;
         }
         return false;
     }
     
-    // Fix: The original logic had a bug where it would not resolve the promise if voices were already cached.
-    // This now correctly resolves the promise if the `voices` array is already populated.
     if (voices.length > 0) {
+      logger.info("Returning cached browser voices.");
       return resolve(voices);
     }
     
-    // Attempt to get voices immediately. If successful, `getVoices` will have resolved the promise and we can exit.
+    logger.info("Attempting to load browser voices...");
     if (getVoices()) {
       return;
     }
@@ -42,7 +42,9 @@ export function getBrowserVoices(): Promise<BrowserVoice[]> {
     setTimeout(() => {
         if(voices.length === 0) {
              if (!getVoices()) {
-                reject(new Error("Could not load browser voices after a timeout."));
+                const message = "Could not load browser voices after a timeout.";
+                logger.error(message);
+                reject(new Error(message));
              }
         }
     }, 1000);
@@ -58,28 +60,59 @@ export function getBrowserVoices(): Promise<BrowserVoice[]> {
  */
 export function browserTextToSpeech(text: string, voiceURI: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    if (typeof window.speechSynthesis === 'undefined') {
-      return reject(new Error("Browser Speech Synthesis API not supported."));
+    const synth = window.speechSynthesis;
+    if (typeof synth === 'undefined') {
+      const msg = "Browser Speech Synthesis API not supported.";
+      logger.error(msg);
+      return reject(new Error(msg));
+    }
+
+    if (!text.trim()) {
+      logger.info("Skipping empty line for speech.");
+      return resolve();
+    }
+
+    // WAKE UP CHROME: This is a crucial step for Chrome. If the engine is paused,
+    // new utterances might be queued but never spoken. Calling resume() wakes it up.
+    if (synth.paused) {
+      logger.warn("Speech synthesis is paused, calling resume().");
+      synth.resume();
     }
     
-    const allVoices = window.speechSynthesis.getVoices();
+    const allVoices = synth.getVoices();
     let voice = allVoices.find(v => v.voiceURI === voiceURI);
 
     if (!voice) {
-      console.warn(`Voice with URI "${voiceURI}" not found. Using default voice.`);
-      // Fallback to the first available voice if the specified one isn't found
+      logger.warn(`Voice with URI "${voiceURI}" not found. Falling back to default.`);
       if (allVoices.length > 0) {
         voice = allVoices[0];
       } else {
-        return reject(new Error("No browser voices available."));
+        const msg = "No browser voices available to speak with.";
+        logger.error(msg);
+        return reject(new Error(msg));
       }
     }
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.voice = voice;
-    utterance.onend = () => resolve();
-    utterance.onerror = (event) => reject(new Error(event.error || 'An unknown speech synthesis error occurred.'));
+    
+    utterance.onstart = () => {
+      logger.info(`Speaking: "${text.substring(0, 50)}..."`);
+    };
 
-    window.speechSynthesis.speak(utterance);
+    utterance.onend = () => {
+      logger.info("Speech finished for utterance.");
+      resolve();
+    };
+
+    utterance.onerror = (event: SpeechSynthesisErrorEvent) => {
+        const errorType = event.error || 'unknown';
+        const msg = `Speech synthesis failed: ${errorType}.`;
+        logger.error(msg, event);
+        reject(new Error(msg));
+    };
+    
+    logger.info(`Queueing utterance with voice: ${voice.name} (${voice.lang})`);
+    synth.speak(utterance);
   });
 }

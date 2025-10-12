@@ -1,21 +1,22 @@
-
 import JSZip from 'jszip';
-import type { ChatMessage } from '../types';
+import type { ChatMessage, ProcessedFile, PodcastProjectFile, PodcastConfig, GeneratedScript } from '../types';
+import { analyzeScript } from './analysisService';
 
 const CODE_FENCE = '```';
 
 /**
  * Main parsing function that delegates to specific parsers based on file type.
  */
-export async function parseFile(file: File): Promise<ChatMessage[]> {
+export async function parseFile(file: File): Promise<ProcessedFile> {
   const fileExtension = file.name.split('.').pop()?.toLowerCase();
   switch (fileExtension) {
     case 'json':
       return parseJson(await file.text());
     case 'txt':
-      return parseTxt(await file.text());
+      return { type: 'chat', messages: parseTxt(await file.text()) };
     case 'zip':
-      return parseZip(file);
+      const messages = await parseZip(file);
+      return { type: 'chat', messages };
     default:
       throw new Error(`Unsupported file type: .${fileExtension}`);
   }
@@ -24,35 +25,70 @@ export async function parseFile(file: File): Promise<ChatMessage[]> {
 /**
  * Parses raw text content, attempting to auto-detect if it's JSON or plain text.
  */
-export function parseTextContent(content: string, typeHint?: 'json' | 'text'): ChatMessage[] {
-  if (typeHint === 'json' || (content.trim().startsWith('[') && content.trim().endsWith(']'))) {
+export function parseTextContent(content: string, typeHint?: 'json' | 'text'): ProcessedFile {
+  if (typeHint === 'json' || (content.trim().startsWith('{') || content.trim().startsWith('['))) {
     try {
       return parseJson(content);
     } catch (e) {
       // Fallback to text parser if JSON parsing fails
-      return parseTxt(content);
+      return { type: 'chat', messages: parseTxt(content) };
     }
   }
-  return parseTxt(content);
+  return { type: 'chat', messages: parseTxt(content) };
 }
 
 /**
- * Parses a ChatGPT JSON export.
+ * Parses a JSON file, which could be a chat log array, a full podcast project, or a legacy script-only file.
  */
-function parseJson(content: string): ChatMessage[] {
+function parseJson(content: string): ProcessedFile {
   try {
     const data = JSON.parse(content);
-    if (!Array.isArray(data)) {
-      throw new Error('Invalid JSON format: Expected an array of messages.');
+
+    // Check 1: New, full podcast project file
+    if (data.version === '1.0' && data.generatedScript && data.podcastConfig && data.analysisResult) {
+        const projectFile = data as PodcastProjectFile;
+        const config: PodcastConfig = {
+            ...projectFile.podcastConfig,
+            voiceMapping: new Map(projectFile.podcastConfig.voiceMapping),
+        };
+        return {
+            type: 'scriptProject',
+            script: projectFile.generatedScript,
+            config: config,
+            analysis: projectFile.analysisResult,
+        };
     }
-    const messages = data.map((item: any) => ({
-      role: item.role || 'unknown',
-      content: item.content || '',
-    }));
-    return processCodeBlocks(messages);
+
+    // Check 2: Legacy, script-only file
+    if (typeof data.title === 'string' && typeof data.hook === 'string' && Array.isArray(data.segments)) {
+        const script: GeneratedScript = {
+            id: data.id || new Date().toISOString(),
+            title: data.title,
+            hook: data.hook,
+            segments: data.segments,
+        };
+        const analysis = analyzeScript(script);
+        return {
+            type: 'legacyScript',
+            script: script,
+            analysis: analysis,
+        };
+    }
+
+    // Check 3: Raw chat log array
+    if (Array.isArray(data)) {
+        const messages = data.map((item: any) => ({
+          role: item.role || 'unknown',
+          content: item.content || '',
+        }));
+        return { type: 'chat', messages: processCodeBlocks(messages) };
+    }
+
+    throw new Error('Invalid JSON format: Expected a chat log, podcast project file, or script file.');
+
   } catch (error) {
     console.error("JSON parsing error:", error);
-    throw new Error('Failed to parse JSON file. Please ensure it is a valid JSON array of messages.');
+    throw new Error('Failed to parse JSON file. Please ensure it is a valid chat log, podcast project, or script file.');
   }
 }
 
@@ -95,7 +131,8 @@ async function parseZip(file: File): Promise<ChatMessage[]> {
   const zip = await JSZip.loadAsync(file);
   const jsonFile = zip.file('chat.json');
   if (jsonFile) {
-    return parseJson(await jsonFile.async('string'));
+    const processedFile = parseJson(await jsonFile.async('string'));
+    if (processedFile.type === 'chat') return processedFile.messages;
   }
   const txtFile = zip.file('chat.txt');
   if (txtFile) {
@@ -107,7 +144,8 @@ async function parseZip(file: File): Promise<ChatMessage[]> {
 
   const anyJson = files.find(f => !f.dir && f.name.endsWith('.json'));
   if (anyJson) {
-    return parseJson(await anyJson.async('string'));
+     const processedFile = parseJson(await anyJson.async('string'));
+     if (processedFile.type === 'chat') return processedFile.messages;
   }
 
   const anyTxt = files.find(f => !f.dir && f.name.endsWith('.txt'));
@@ -115,7 +153,7 @@ async function parseZip(file: File): Promise<ChatMessage[]> {
     return parseTxt(await anyTxt.async('string'));
   }
 
-  throw new Error('No compatible .json or .txt file found in the zip archive.');
+  throw new Error('No compatible chat log (.json or .txt) file found in the zip archive.');
 }
 
 

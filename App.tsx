@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import type { ChatMessage, AnalysisResult, PodcastConfig, GeneratedScript } from './types';
+import type { ChatMessage, AnalysisResult, PodcastConfig, GeneratedScript, ProcessedFile } from './types';
 import { Header } from './components/Header';
 import { FileUpload } from './components/FileUpload';
 import { AnalysisSummary } from './components/AnalysisSummary';
@@ -9,6 +9,7 @@ import { Loader } from './components/Loader';
 import { analyzeChat } from './services/analysisService';
 import { generatePodcastScript } from './services/geminiService';
 import { ArrowLeftIcon } from './components/icons';
+import { DebugLog } from './components/DebugLog';
 
 type AppState = 'upload' | 'settings' | 'generating' | 'preview';
 
@@ -21,16 +22,36 @@ function App() {
   const [error, setError] = useState<string>('');
   const [loadingMessage, setLoadingMessage] = useState<string>('');
 
-  const handleFileProcessed = useCallback((messages: ChatMessage[]) => {
-    const analysisResult = analyzeChat(messages);
-    setChatMessages(messages);
-    setAnalysis(analysisResult);
-    setAppState('settings');
+  const handleFileProcessed = useCallback((result: ProcessedFile) => {
     setError('');
+    if (result.type === 'chat') {
+        const analysisResult = analyzeChat(result.messages);
+        setChatMessages(result.messages);
+        setAnalysis(analysisResult);
+        setAppState('settings');
+    } else if (result.type === 'scriptProject') {
+        setAnalysis(result.analysis);
+        setPodcastConfig(result.config);
+        setGeneratedScript(result.script);
+        setAppState('preview');
+    } else if (result.type === 'legacyScript') {
+        setGeneratedScript(result.script);
+        setAnalysis(result.analysis);
+        setPodcastConfig(null);
+        setChatMessages([]); 
+        setAppState('settings');
+    }
   }, []);
 
   const handleConfigured = async (config: PodcastConfig) => {
     setPodcastConfig(config);
+    // If a script has already been loaded (e.g., from a legacy file),
+    // apply the new config and go straight to the preview.
+    if (generatedScript) {
+      setAppState('preview');
+      return;
+    }
+
     setAppState('generating');
     setError('');
     setLoadingMessage('Generating podcast script with Gemini...');
@@ -48,7 +69,11 @@ function App() {
   };
   
   const handleBackToSettings = () => {
-    setGeneratedScript(null);
+    // Only clear the script if it was generated from a chat log.
+    // If we loaded a script directly, we want to keep it when editing settings.
+    if (chatMessages.length > 0) {
+      setGeneratedScript(null);
+    }
     setAppState('settings');
   };
   
@@ -88,6 +113,7 @@ function App() {
             <PodcastSettings
               analysis={analysis}
               onConfigSubmit={handleConfigured}
+              hasExistingScript={!!generatedScript}
             />
           </div>
         );
@@ -102,6 +128,7 @@ function App() {
             analysis={analysis}
             onBack={handleBackToSettings}
             onReset={handleReset}
+            setError={setError}
           />
         );
       default:
@@ -126,6 +153,7 @@ function App() {
       <footer className="text-center py-4 text-dark-text-secondary text-sm">
         <p>Powered by Google Gemini.</p>
       </footer>
+      <DebugLog />
     </div>
   );
 }

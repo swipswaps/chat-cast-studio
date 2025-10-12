@@ -1,5 +1,4 @@
-
-import type { ChatMessage, AnalysisResult } from '../types';
+import type { ChatMessage, AnalysisResult, GeneratedScript } from '../types';
 
 const WORDS_PER_MINUTE = 150; // Average speaking rate
 
@@ -37,5 +36,27 @@ export function analyzeChat(messages: ChatMessage[]): AnalysisResult {
     estimatedDurationMinutes,
     codeBlockCount,
     proseToCodeRatio,
+  };
+}
+
+/**
+ * Analyzes a generated script to create a basic AnalysisResult.
+ * This is used when loading a legacy script-only file.
+ */
+export function analyzeScript(script: GeneratedScript): AnalysisResult {
+  const speakers = [...new Set(script.segments.map(s => s.speaker))];
+  const wordCount = script.segments.reduce((sum, seg) => {
+    return sum + seg.line.split(/\s+/).filter(Boolean).length;
+  }, 0);
+
+  const estimatedDurationMinutes = Math.max(1, Math.round(wordCount / WORDS_PER_MINUTE));
+
+  return {
+    speakers,
+    messageCount: script.segments.length,
+    wordCount,
+    estimatedDurationMinutes,
+    codeBlockCount: 0, // Cannot be determined from a generated script
+    proseToCodeRatio: 'N/A', // Cannot be determined from a generated script
   };
 }

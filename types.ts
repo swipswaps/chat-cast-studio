@@ -1,3 +1,5 @@
+// FIX: Removed conflicting self-import of 'ChatMessage'.
+
 export interface ChatMessage {
   role: string;
   content: string;
@@ -38,6 +40,15 @@ export interface PodcastConfig {
   includeSfx: boolean;
 }
 
+// A version of PodcastConfig where the Map is converted to an array for JSON serialization
+export interface SerializablePodcastConfig {
+  style: PodcastStyle;
+  technicality: TechnicalityLevel;
+  voiceMapping: [string, VoiceSetting][];
+  includeMusic: boolean;
+  includeSfx: boolean;
+}
+
 export interface ScriptSegment {
   speaker: string;
   line: string;
@@ -59,3 +70,26 @@ export interface BrowserVoice {
 }
 
 export type RecordingState = 'idle' | 'permission' | 'recording' | 'processing' | 'finished' | 'error';
+
+// The structure of the downloadable/uploadable project file
+export interface PodcastProjectFile {
+  version: string;
+  generatedScript: GeneratedScript;
+  podcastConfig: SerializablePodcastConfig;
+  analysisResult: AnalysisResult;
+}
+
+// The result of the parser service, which can be one of three types
+export type ProcessedFile = 
+  | { type: 'chat'; messages: ChatMessage[] }
+  | { 
+      type: 'scriptProject';
+      script: GeneratedScript;
+      config: PodcastConfig;
+      analysis: AnalysisResult;
+    }
+  | {
+      type: 'legacyScript';
+      script: GeneratedScript;
+      analysis: AnalysisResult;
+    };
