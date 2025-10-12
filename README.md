@@ -4,53 +4,63 @@ Chatcast Studio is an innovative, AI-powered web application designed to transfo
 
 This tool automates the heavy lifting of scriptwriting, allowing content creators to generate engaging audio content with structured narratives, distinct speaker roles, and production cues, all from a simple conversation.
 
-## Key Features
+## 🚀 Quick Start Guide
 
-- **AI-Powered Script Generation**: Leverages the Gemini API to intelligently convert unstructured chat logs into a well-structured podcast script with a title, hook, distinct segments, and an outro.
-- **Multiple Input Formats**: Supports uploading `.txt`, `.json`, and `.zip` chat logs, as well as directly pasting raw text.
-- **Customizable Podcast Style**: Choose from different styles (e.g., Narrative Interview, Tech Deep-Dive) and technicality levels to tailor the script's tone and content to your audience.
-- **Voice Casting**: Assign distinct podcast names and browser-based voices to each speaker in the chat for in-app previews.
-- **Interactive Script Editor**: Fine-tune the generated script directly in the browser. Edit spoken text, adjust voice delivery (rate, pitch, volume) for each line.
-- **Advanced Playback Controls**: A full-featured player with a visual timeline, true pause/resume, stop, and click-to-play functionality for any segment.
-- **High-Quality Media Export (MP3 & MP4)**: Exports your project directly to `.mp3` or `.mp4` files using a local backend server for audio generation and a browser-based version of FFMPEG for video creation.
-- **Project Save/Load**: Save your complete, edited project—including the script and all your settings—as a single `.json` file and load it back in later to continue your work.
+Follow these steps to get the application running correctly.
 
-## Getting Started
-
-This project uses a Vite-based frontend and a local Node.js server for backend audio processing.
-
-1.  **Install Dependencies**:
+1.  **Install Dependencies**: Open your terminal in the project directory and run:
     ```bash
     npm install
     ```
 
-2.  **Run the Application**:
+2.  **Run the Application**: To use all features, including media export, you **must** use the `start` command:
     ```bash
     npm start
     ```
-    This command will concurrently start:
+    This command concurrently starts both:
     *   The Vite frontend development server (usually on `http://localhost:5173`).
-    *   The local backend TTS server (on `http://localhost:3000`).
+    *   The local backend TTS server required for audio export (on `http://localhost:3000`).
 
-3.  **Provide a Chat Log**:
-    *   Open the application in your browser.
-    *   **Drag & Drop**: Drop your `.txt`, `.json`, or `.zip` file onto the upload area.
-    *   **Paste Text**: Paste the raw text of your conversation into the text area and click "Process".
-    *   **Use an Example**: If you don't have a log handy, click one of the "Load Example" buttons to see how it works.
+3.  **Open in Browser**: Navigate to `http://localhost:5173` in your web browser.
 
-4.  **Configure Your Podcast**:
-    *   After the chat is analyzed, you'll be taken to the settings screen.
-    *   Choose a **Podcast Style** and **Technicality Level**.
-    *   In the **Voice Casting** section, assign a "Podcast Name" (e.g., Host, Guest) and a browser voice to each original speaker for the in-app preview.
+That's it! The application should now be fully functional.
 
-5.  **Generate & Preview**:
-    *   Click **"Generate Podcast Script"**. The AI will create your script.
-    *   On the preview screen, use the player controls to listen to the browser-based audio preview.
+---
 
-6.  **Edit & Refine**:
-    *   Click the pencil icon next to any line to open the editor.
-    *   You can change the text that will be spoken, or adjust the **rate**, **pitch**, and **volume** of the voice for that specific line.
+## Troubleshooting & FAQ
 
-7.  **Save & Export**:
-    *   Click **"Save Project"** at any time to download a `.json` file containing all your work.
-    *   Click **"Export"** to open the export modal. The application will send the script to the local backend to generate the real audio, then package it as an `.mp3` or `.mp4` in your browser.
+If you run into problems, check here for solutions to common issues.
+
+#### **Q: The app looks weird, unstyled, or like plain HTML.**
+
+This almost always means the project dependencies are missing or the styling framework is not configured correctly.
+
+*   **Solution**: Stop the application (`Ctrl+C` in your terminal), run `npm install` again to ensure all packages are correctly installed, and then restart it with `npm start`.
+
+#### **Q: The 'Export' button does nothing, gets stuck, or shows a connection error.**
+
+This feature depends on the local backend server, which is the most common point of failure.
+
+*   **Did you use `npm start`?** The export feature **requires** the local backend server. The `npm start` command runs both the frontend and this server. If you only run `npm run dev`, the server will not be active, and export will fail. The error message in the export pop-up should tell you if it can't connect.
+*   **Is the server running correctly?** Check the terminal where you ran `npm start`. You should see output for both the Vite server and a line like `Server listening on port 3000`. If you see errors related to the server, it may not have started correctly.
+*   **Alternative to `npm start`**: If the `start` command fails for any reason, you can run the two services separately. Open **two separate terminals**:
+    *   In Terminal 1, run `npm run dev` for the frontend.
+    *   In Terminal 2, run `npm run server` for the backend.
+
+#### **Q: Can I use the app *without* the backend server?**
+
+**Yes!** You can do everything **except** the final MP3/MP4 export. If you only want to generate and edit a script, you don't need the backend.
+
+To do this, just run `npm run dev` in your terminal and ignore the export feature. You can still:
+*   Upload/paste a chat log.
+*   Generate a podcast script with AI.
+*   Listen to a preview using your browser's built-in voices.
+*   Edit the script line-by-line.
+*   Save your project as a `.json` file to continue later.
+
+#### **Q: I'm getting errors about `SharedArrayBuffer` or FFMPEG won't load.**
+
+This is related to browser security policies required for FFMPEG to work in the browser.
+*   The `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` headers in `index.html` are **required** and should not be removed.
+*   Ensure you are serving the app from `localhost` via the Vite dev server (`npm start`). Opening the `index.html` file directly in your browser will not work.
+*   Some browser extensions (like certain ad-blockers) can interfere with these security policies. If you have persistent issues, try disabling extensions for the app's local domain.

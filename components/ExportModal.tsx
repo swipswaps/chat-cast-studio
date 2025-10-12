@@ -37,7 +37,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({ scriptTitle, onClose, 
     if (hasStarted) {
       return (
         <div className="p-6 space-y-4">
-          <h3 className="text-lg font-semibold text-center">{progress?.message}</h3>
+          {progress?.phase === 'error' ? (
+            <p className="text-red-400 text-center text-lg font-semibold">{progress.message}</p>
+          ) : progress?.phase === 'done' ? (
+            <p className="text-green-400 text-center text-lg font-semibold">Export complete! Check your downloads.</p>
+          ) : (
+            <h3 className="text-lg font-semibold text-center text-white">{progress?.message}</h3>
+          )}
+
           {isInProgress && (
             <div className="w-full bg-dark-border rounded-full h-4">
               <div 
@@ -46,8 +53,6 @@ export const ExportModal: React.FC<ExportModalProps> = ({ scriptTitle, onClose, 
               ></div>
             </div>
           )}
-          {progress?.phase === 'error' && <p className="text-red-400 text-center">Export failed. Please ensure the backend TTS server is running and accessible. See the README for setup instructions.</p>}
-          {progress?.phase === 'done' && <p className="text-green-400 text-center">Export complete! Check your downloads.</p>}
         </div>
       );
     }
