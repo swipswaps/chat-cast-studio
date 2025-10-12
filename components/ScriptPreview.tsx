@@ -13,19 +13,18 @@ interface ScriptPreviewProps {
     config: PodcastConfig;
     analysis: AnalysisResult;
     onBack: () => void;
-    setError: (error: string) => void;
+    setError: (error: string | null) => void;
 }
 
 export const ScriptPreview: React.FC<ScriptPreviewProps> = ({ script: initialScript, config: initialConfig, analysis, onBack, setError }) => {
     const [script, setScript] = useState<GeneratedScript>(initialScript);
     const [config, setConfig] = useState<PodcastConfig>(initialConfig);
     const [playbackState, setPlaybackState] = useState<PlaybackState>('stopped');
-    const [currentSegmentIndex, setCurrentSegmentIndex] = useState<number | null>(null);
+    const [currentSegmentIndex, setCurrentSegmentIndex] = useState<number>(0);
     const [editingSegment, setEditingSegment] = useState<ScriptSegment | null>(null);
     const [isExporting, setIsExporting] = useState(false);
     const [isBusy, setIsBusy] = useState(false);
-    const isBusyRef = useRef(false);
-
+    
     // Stop playback when component unmounts
     useEffect(() => {
         return () => {
@@ -33,82 +32,68 @@ export const ScriptPreview: React.FC<ScriptPreviewProps> = ({ script: initialScr
         };
     }, []);
 
-    const handleAsyncAction = async (action: () => Promise<void>) => {
-        if (isBusyRef.current) {
-            logger.warn('Ignoring action because player is busy.');
-            return;
-        }
-        isBusyRef.current = true;
+    const performBusyAction = async (action: () => void) => {
+        if (isBusy) return;
         setIsBusy(true);
-        setError('');
         try {
-            await action();
+            action();
         } catch (err) {
-            const message = err instanceof Error ? err.message : 'An unknown error occurred during playback.';
-            logger.error('Async action failed:', err);
-            setError(message);
-        } finally {
-            isBusyRef.current = false;
-            setIsBusy(false);
+            setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
         }
+        // Add a small delay to prevent rapid-fire commands from overwhelming the speech synth
+        await new Promise(resolve => setTimeout(resolve, 50));
+        setIsBusy(false);
     };
 
     const handleSegmentStart = useCallback((index: number) => {
         setCurrentSegmentIndex(index);
-        return true; // continue playback
     }, []);
     
     const handlePlaybackFinish = useCallback(() => {
         logger.info('Playback finished.');
         setPlaybackState('stopped');
-        setCurrentSegmentIndex(null);
+        // Do not reset index, keep it at the last segment
+        setCurrentSegmentIndex(prev => Math.max(0, prev));
     }, []);
 
     const handlePlaybackError = useCallback((error: string) => {
         logger.error('Playback error received by component:', error);
         setError(error);
         setPlaybackState('stopped');
-        setCurrentSegmentIndex(null);
     }, [setError]);
 
-    const handlePlayPause = () => handleAsyncAction(async () => {
+    const handlePlayPause = () => performBusyAction(() => {
         if (playbackState === 'playing') {
-            logger.info('User paused playback.');
-            await pausePlayback();
+            pausePlayback();
             setPlaybackState('paused');
         } else if (playbackState === 'paused') {
-            logger.info('User resumed playback.');
-            await resumePlayback();
+            resumePlayback();
             setPlaybackState('playing');
         } else { // 'stopped'
-            logger.info('User started playback.');
             setPlaybackState('playing');
-            await playScript(
+            playScript(
                 script.segments,
                 config.voiceMapping,
                 handleSegmentStart,
                 handlePlaybackFinish,
                 handlePlaybackError,
-                currentSegmentIndex ?? 0
+                currentSegmentIndex
             );
         }
     });
 
-    const handleStop = () => handleAsyncAction(async () => {
-        logger.info('User stopped playback.');
-        await stopPlayback();
+    const handleStop = () => performBusyAction(() => {
+        stopPlayback();
         setPlaybackState('stopped');
-        // Reset to beginning of current segment, not whole script
-        setCurrentSegmentIndex(currentSegmentIndex ?? 0);
+        // Do not reset index. User expects to be at the same segment.
     });
 
-    const handleSeek = (index: number) => handleAsyncAction(async () => {
+    const handleSeek = (index: number) => performBusyAction(() => {
         logger.info(`User seeking to segment ${index}.`);
-        if (playbackState !== 'stopped') {
-            await stopPlayback();
-        }
+        stopPlayback(); // Always stop before starting a new playback
+        setCurrentSegmentIndex(index);
         setPlaybackState('playing');
-        await playScript(
+        playScript(
             script.segments,
             config.voiceMapping,
             handleSegmentStart,
@@ -152,7 +137,7 @@ export const ScriptPreview: React.FC<ScriptPreviewProps> = ({ script: initialScr
         a.href = url;
         a.download = `${script.title.replace(/\s/g, '_') || 'podcast'}_project.json`;
         document.body.appendChild(a);
-a.click();
+        a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
     };
@@ -200,7 +185,7 @@ a.click();
                         <div 
                              key={index} 
                              onClick={() => !isBusy && handleSeek(index)}
-                             className={`p-4 rounded-md transition-all duration-300 ${isBusy ? 'cursor-wait' : 'cursor-pointer'} ${currentSegmentIndex === index ? 'bg-brand-primary/20 ring-2 ring-brand-primary' : 'bg-dark-bg'}`}
+                             className={`p-4 rounded-md transition-all duration-300 ${isBusy ? 'cursor-wait' : 'cursor-pointer'} ${currentSegmentIndex === index && playbackState !== 'stopped' ? 'bg-brand-primary/20 ring-2 ring-brand-primary' : 'bg-dark-bg'}`}
                         >
                             <div className="flex justify-between items-center mb-2">
                                 <p className="font-bold text-lg text-brand-accent">{config.voiceMapping.get(segment.speaker)?.podcastName || segment.speaker}</p>
