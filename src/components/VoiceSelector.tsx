@@ -3,8 +3,8 @@
 // Dynamically populates voices from backend + browser speechSynthesis.
 
 import React, { useEffect, useState } from "react";
-import { fetchBackendVoices } from "../services/tts";
-import { logEvent } from "../services/logService";
+import { fetchBackendVoices } from "../services/tts.ts";
+import { logEvent } from "../services/logService.ts";
 
 interface VoiceSelectorProps {
   selectedVoice: string;

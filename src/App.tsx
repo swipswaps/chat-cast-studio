@@ -17,12 +17,12 @@ import { PodcastSettings } from "./components/PodcastSettings";
 import { ScriptPreview } from "./components/ScriptPreview";
 import { Loader } from "./components/Loader";
 import { DebugLog } from "./components/DebugLog";
-import { analyzeChat } from "./services/analysisService";
-import { generatePodcastScript } from "./services/geminiService";
-import { parseFile, parseTextContent } from "./services/parserService";
-import { fetchBackendVoices } from "./services/tts";
+import { analyzeChat } from "services/analysisService.ts";
+import { generatePodcastScript } from "services/geminiService.ts";
+import { parseFile, parseTextContent } from "services/parserService.ts";
+import { fetchBackendVoices } from "services/tts.ts";
 import { VoiceSelector } from "./components/VoiceSelector";
-import { logEvent } from "./services/logService";
+import { logEvent } from "services/logService.ts";
 
 type AppState = "initial" | "analyzing" | "settings" | "generating" | "preview";
 

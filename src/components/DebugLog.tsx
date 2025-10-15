@@ -1,6 +1,6 @@
 // src/components/DebugLog.tsx
 import React from "react";
-import { getLogs } from "../services/logService";
+import { getLogs } from "../services/logService.ts";
 
 export function DebugLog() {
   const logs = getLogs();
