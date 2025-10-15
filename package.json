@@ -5,10 +5,11 @@
   "main": "index.js",
   "scripts": {
     "start": "concurrently \"npm:server\" \"npm:dev\"",
-    "dev": "vite",
+    "dev": "concurrently \"npm run server\" \"vite\"",
     "server": "node server.mjs",
     "build": "vite build",
     "preview": "vite preview"
+    
   },
   "keywords": [
     "react",
@@ -22,23 +23,30 @@
     "@ffmpeg/ffmpeg": "^0.12.10",
     "@ffmpeg/util": "^0.12.1",
     "@google/genai": "^1.23.0",
+    "body-parser": "^2.2.0",
     "jszip": "^3.10.1",
+    "morgan": "^1.10.1",
+    "openai": "^6.3.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-dropzone": "^14.3.8"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.19",
     "concurrently": "^8.2.2",
     "cors": "^2.8.5",
-    "express": "^4.19.2",
+    "express": "^4.21.2",
     "gtts": "^0.2.1",
+    "jsdom": "^27.0.0",
+    "nodemon": "^3.1.10",
     "postcss": "^8.4.39",
     "tailwindcss": "^3.4.4",
     "typescript": "^5.5.3",
-    "vite": "^5.3.3"
+    "vite": "^7.1.9",
+    "vitest": "^3.2.4"
   }
 }
