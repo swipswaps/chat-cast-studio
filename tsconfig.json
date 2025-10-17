@@ -1,29 +1,36 @@
 {
+  "//": "PRF-COMPLIANT TS CONFIGURATION — ChatCast Studio (2025-10-15)",
   "compilerOptions": {
     "target": "ES2022",
-    "experimentalDecorators": true,
-    "useDefineForClassFields": false,
     "module": "ESNext",
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
-    "skipLibCheck": true,
-    "types": [
-      "node"
-    ],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+
+    // --- Module handling ---
     "moduleResolution": "bundler",
-    "isolatedModules": true,
     "moduleDetection": "force",
     "allowJs": true,
-    "jsx": "react-jsx",
-    "paths": {
-      "@/*": [
-        "./*"
-      ]
-    },
+    "isolatedModules": true,
+    "useDefineForClassFields": false,
+    "experimentalDecorators": true,
     "allowImportingTsExtensions": true,
-    "noEmit": true
-  }
+
+    // --- Type and build safety ---
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["node"],
+
+    // --- Path aliases synchronized with vite.config.ts ---
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "services/*": ["src/services/*"],
+      "components/*": ["src/components/*"],
+      "utils/*": ["src/utils/*"],
+      "types": ["src/types.ts"],
+      "types/*": ["src/types/*"]
+    }
+  },
+  "include": ["src", "vite.config.ts", "vite-env.d.ts"],
+  "exclude": ["node_modules", "dist"]
 }

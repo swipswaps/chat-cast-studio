@@ -1,6 +1,6 @@
 
 import { browserTextToSpeech } from './browserTtsService';
-import type { ScriptSegment, VoiceSetting, PlaybackState } from '../types';
+import type { ScriptSegment, VoiceSetting, PlaybackState } from "../types";
 import logger from './loggingService';
 
 type AudioServiceCallbacks = {

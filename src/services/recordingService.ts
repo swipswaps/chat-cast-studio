@@ -1,4 +1,4 @@
-import type { RecordingState } from '../types';
+import type { RecordingState } from "../types";
 
 let mediaRecorder: MediaRecorder | null = null;
 let audioChunks: Blob[] = [];

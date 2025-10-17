@@ -1,14 +1,12 @@
-import type { ChatMessage, AnalysisResult, GeneratedScript } from '../types';
+// src/services/analysisService.ts
+import type { ChatMessage, AnalysisResult, GeneratedScript } from "../types";
 
-const WORDS_PER_MINUTE = 150; // Average speaking rate
+const WORDS_PER_MINUTE = 150;
 
-/**
- * Analyzes an array of chat messages to extract key metrics.
- */
 export function analyzeChat(messages: ChatMessage[]): AnalysisResult {
-  const speakers = [...new Set(messages.map(m => m.role).filter(role => role !== 'unknown' && role))];
+  const speakers = [...new Set(messages.map(m => m.role).filter(Boolean))];
   const messageCount = messages.length;
-  
+
   let wordCount = 0;
   let codeBlockCount = 0;
   let codeWordCount = 0;
@@ -25,9 +23,10 @@ export function analyzeChat(messages: ChatMessage[]): AnalysisResult {
   const proseWordCount = wordCount - codeWordCount;
   const estimatedDurationMinutes = Math.max(1, Math.round(proseWordCount / WORDS_PER_MINUTE));
 
-  const proseToCodeRatio = wordCount > 0 && codeWordCount > 0 
-    ? `${Math.round((proseWordCount / wordCount) * 100)}% / ${Math.round((codeWordCount / wordCount) * 100)}%`
-    : '100% / 0%';
+  const proseToCodeRatio =
+    wordCount > 0 && codeWordCount > 0
+      ? `${Math.round((proseWordCount / wordCount) * 100)}% / ${Math.round((codeWordCount / wordCount) * 100)}%`
+      : '100% / 0%';
 
   return {
     speakers,
@@ -39,16 +38,9 @@ export function analyzeChat(messages: ChatMessage[]): AnalysisResult {
   };
 }
 
-/**
- * Analyzes a generated script to create a basic AnalysisResult.
- * This is used when loading a legacy script-only file.
- */
 export function analyzeScript(script: GeneratedScript): AnalysisResult {
   const speakers = [...new Set(script.segments.map(s => s.speaker))];
-  const wordCount = script.segments.reduce((sum, seg) => {
-    return sum + seg.line.split(/\s+/).filter(Boolean).length;
-  }, 0);
-
+  const wordCount = script.segments.reduce((sum, seg) => sum + (seg.line?.split(/\s+/).filter(Boolean).length ?? 0), 0);
   const estimatedDurationMinutes = Math.max(1, Math.round(wordCount / WORDS_PER_MINUTE));
 
   return {
@@ -56,7 +48,7 @@ export function analyzeScript(script: GeneratedScript): AnalysisResult {
     messageCount: script.segments.length,
     wordCount,
     estimatedDurationMinutes,
-    codeBlockCount: 0, // Cannot be determined from a generated script
-    proseToCodeRatio: 'N/A', // Cannot be determined from a generated script
+    codeBlockCount: 0,
+    proseToCodeRatio: 'N/A',
   };
 }

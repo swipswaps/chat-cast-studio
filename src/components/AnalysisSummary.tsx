@@ -1,15 +1,23 @@
-// src/components/AnalysisSummary.tsx
-import React from "react";
+import React from 'react';
+import type { AnalysisResult } from '../types';
 
 interface AnalysisSummaryProps {
-  summary: string;
+  analysis: AnalysisResult;
 }
 
-export function AnalysisSummary({ summary }: AnalysisSummaryProps) {
+export const AnalysisSummary: React.FC<AnalysisSummaryProps> = ({ analysis }) => {
   return (
-    <section className="p-4 bg-gray-50 border rounded mt-4">
-      <h2 className="text-lg font-semibold mb-2">Summary</h2>
-      <p className="text-gray-700 whitespace-pre-wrap">{summary}</p>
-    </section>
+    <div className="analysis-summary">
+      <h3>Analysis Summary</h3>
+      <p>Speakers: {analysis.speakers.join(', ')}</p>
+      <p>Messages: {analysis.messageCount}</p>
+      <p>Words: {analysis.wordCount}</p>
+      <p>Estimated Duration: {analysis.estimatedDurationMinutes} min</p>
+      {analysis.codeBlockCount !== undefined && <p>Code Blocks: {analysis.codeBlockCount}</p>}
+      {analysis.proseToCodeRatio && <p>Prose/Code Ratio: {analysis.proseToCodeRatio}</p>}
+      {analysis.summary && <p>Summary: {analysis.summary}</p>}
+      {analysis.keywords && <p>Keywords: {analysis.keywords.join(', ')}</p>}
+      {analysis.sentiment && <p>Sentiment: {analysis.sentiment}</p>}
+    </div>
   );
-}
+};

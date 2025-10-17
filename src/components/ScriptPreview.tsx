@@ -1,5 +1,5 @@
 import React from "react";
-import type { GeneratedScript, PodcastConfig, AnalysisResult } from "../types";
+import type { GeneratedScript, PodcastConfig, AnalysisResult } from "types";
 
 interface ScriptPreviewProps {
   script: GeneratedScript;
