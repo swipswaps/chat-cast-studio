@@ -1,11 +1,14 @@
 // File: src/components/VoiceSelector.tsx
-// PRF-COMPLIANT FIX 2025-10-15
-// Dynamically populates voices from backend + browser speechSynthesis.
+// PRF-COMPLIANT FULL VERSION
+// Purpose: Dynamically populate available voices from backend and browser.
+// Allows user to select a voice for a speaker, with full logging for auditing.
 
 import React, { useEffect, useState } from "react";
-import { fetchBackendVoices } from "../services/tts.ts";
-import { logEvent } from "../services/logService.ts";
+import { fetchBackendVoices } from "../services/tts";
+import { logEvent } from "../services/logService";
 
+// Props: selectedVoice = currently selected voice
+//        onSelect = callback to propagate selection to parent
 interface VoiceSelectorProps {
   selectedVoice: string;
   onSelect: (voice: string) => void;
@@ -14,6 +17,7 @@ interface VoiceSelectorProps {
 export function VoiceSelector({ selectedVoice, onSelect }: VoiceSelectorProps) {
   const [voices, setVoices] = useState<{ name: string; lang: string }[]>([]);
 
+  // Load voices from backend and browser speechSynthesis
   useEffect(() => {
     (async () => {
       try {
@@ -24,6 +28,7 @@ export function VoiceSelector({ selectedVoice, onSelect }: VoiceSelectorProps) {
             ?.map((v) => ({ name: v.name, lang: v.lang })) || [];
         const merged = [...backend, ...localVoices];
         setVoices(merged);
+
         logEvent("INFO", `VoiceSelector loaded ${merged.length} voices`, merged, "VoiceSelector");
       } catch (err) {
         logEvent("ERROR", "Failed to load voices", err, "VoiceSelector");

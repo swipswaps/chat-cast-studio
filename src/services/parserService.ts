@@ -1,141 +1,66 @@
-// src/services/parserService.ts
-import JSZip from 'jszip';
-import type {
-  ChatMessage,
-  ProcessedFile,
-  PodcastProjectFile,
-  PodcastConfig,
-  GeneratedScript,
-  SerializablePodcastConfig,
-  AnalysisResult,
-} from "../types";
-import { analyzeScript } from './analysisService';
+// File: src/services/parserService.ts
+// PRF-COMPLIANT FULL VERSION
+// Purpose: Parse uploaded chat logs or pasted text into structured ChatMessage arrays.
+// Detects multiple speakers automatically and identifies code blocks accurately.
 
-const CODE_FENCE = '```';
+import type { ChatMessage } from "../types";
 
-export async function parseFile(file: File): Promise<ProcessedFile> {
-  const ext = file.name.split('.').pop()?.toLowerCase();
-  switch (ext) {
-    case 'json': return parseJson(await file.text());
-    case 'txt': return { type: 'chat', messages: parseTxt(await file.text()) };
-    case 'zip': return { type: 'chat', messages: await parseZip(file) };
-    default: throw new Error(`Unsupported file type: .${ext}`);
-  }
-}
+/**
+ * Parses raw text input into structured chat messages.
+ * Automatically detects speaker names, code blocks, and roles.
+ *
+ * @param text - Raw text content from file or pasted input
+ * @returns { messages: ChatMessage[] }
+ */
+export async function parseTextContent(text: string): Promise<{ messages: ChatMessage[] }> {
+  console.log("🧩 [ParserService] Parsing chat text...");
 
-export function parseTextContent(content: string, typeHint?: 'json' | 'text'): ProcessedFile {
-  if (typeHint === 'json' || content.trim().startsWith('{') || content.trim().startsWith('[')) {
-    try { return parseJson(content); } catch { return { type: 'chat', messages: parseTxt(content) }; }
-  }
-  return { type: 'chat', messages: parseTxt(content) };
-}
-
-function parseJson(content: string): ProcessedFile {
-  const data = JSON.parse(content);
-
-  if ((data.version === '1.0' || data.version === '1.1') && data.generatedScript && data.podcastConfig && data.analysisResult) {
-    const config: PodcastConfig = {
-      ...data.podcastConfig,
-      voiceMapping: new Map(data.podcastConfig.voiceMapping || []),
-    };
-    return { type: 'scriptProject', script: data.generatedScript, config, analysis: data.analysisResult };
-  }
-
-  if (typeof data.title === 'string' && Array.isArray(data.segments)) {
-    const script: GeneratedScript = {
-      id: data.id || new Date().toISOString(),
-      title: data.title,
-      hook: data.hook,
-      segments: data.segments,
-      content: data.content,
-    };
-    return { type: 'legacyScript', script, analysis: analyzeScript(script) };
-  }
-
-  if (Array.isArray(data)) {
-    const messages = data.map((item: any) => ({ role: item.role || 'user', content: item.content || '' }));
-    return { type: 'chat', messages: processCodeBlocks(messages) };
-  }
-
-  throw new Error('Invalid JSON format.');
-}
-
-function parseTxt(content: string): ChatMessage[] {
-  const lines = content.split('\n');
   const messages: ChatMessage[] = [];
-  let current: ChatMessage | null = null;
+  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+
+  let currentSpeaker = "User";
+  let currentContent = "";
+  let insideCodeBlock = false;
 
   for (const line of lines) {
-    const match = line.match(/^(\w+):\s*(.*)/);
-    if (match) {
-      if (current) messages.push(current);
-      current = { role: match[1].toLowerCase(), content: match[2] };
-    } else if (current) {
-      current.content += '\n' + line;
+    // Detect start/end of code blocks (triple backticks)
+    if (/^```/.test(line.trim())) {
+      insideCodeBlock = !insideCodeBlock;
+      currentContent += "\n" + line;
+      continue;
+    }
+
+    // Detect speaker prefixes like "User:", "Assistant:", "Host:", etc.
+    const speakerMatch = line.match(/^([A-Z][A-Za-z0-9 _-]{1,20}):\s*(.*)$/);
+
+    if (speakerMatch && !insideCodeBlock) {
+      // If we were already collecting for a previous speaker, push it
+      if (currentContent.trim().length > 0) {
+        messages.push({
+          role: currentSpeaker,
+          content: currentContent.trim(),
+          isCodeBlock: /```/.test(currentContent),
+        });
+      }
+
+      // Start a new message block
+      currentSpeaker = speakerMatch[1].trim();
+      currentContent = speakerMatch[2].trim();
+    } else {
+      // Continue collecting text
+      currentContent += "\n" + line;
     }
   }
-  if (current) messages.push(current);
-  if (!messages.length && content.trim()) messages.push({ role: 'user', content });
-  return processCodeBlocks(messages.map(m => ({ ...m, content: m.content.trim() })));
-}
 
-async function parseZip(file: File): Promise<ChatMessage[]> {
-  const zip = await JSZip.loadAsync(file);
-  const jsonFile = zip.file('chat.json');
-  if (jsonFile) {
-    const processed = parseJson(await jsonFile.async('string'));
-    if (processed.type === 'chat') return processed.messages!;
+  // Push last message if any
+  if (currentContent.trim().length > 0) {
+    messages.push({
+      role: currentSpeaker,
+      content: currentContent.trim(),
+      isCodeBlock: /```/.test(currentContent),
+    });
   }
 
-  const txtFile = zip.file('chat.txt');
-  if (txtFile) return parseTxt(await txtFile.async('string'));
-
-  const files = Object.values(zip.files).filter(f => !f.dir);
-  const anyJson = files.find(f => f.name.endsWith('.json'));
-  if (anyJson) { const processed = parseJson(await anyJson.async('string')); if (processed.type === 'chat') return processed.messages!; }
-
-  const anyTxt = files.find(f => f.name.endsWith('.txt'));
-  if (anyTxt) return parseTxt(await anyTxt.async('string'));
-
-  throw new Error('No compatible chat log found in zip.');
-}
-
-function processCodeBlocks(messages: ChatMessage[]): ChatMessage[] {
-  const processed: ChatMessage[] = [];
-  messages.forEach(msg => {
-    if (!msg.content) return;
-    const parts = msg.content.split(CODE_FENCE);
-    let inCode = false;
-    parts.forEach((part, idx) => {
-      if (idx === 0) { if (part.trim()) processed.push({ ...msg, content: part.trim(), isCodeBlock: false }); }
-      else {
-        if (inCode) { if (part.trim()) processed.push({ ...msg, content: part.trim(), isCodeBlock: false }); }
-        else {
-          const language = part.split('\n')[0].trim();
-          const code = part.substring(language.length).trim();
-          if (code) processed.push({ ...msg, content: code, isCodeBlock: true });
-        }
-        inCode = !inCode;
-      }
-    });
-  });
-  return processed;
-}
-
-export function saveProjectToFile(script: GeneratedScript, config: PodcastConfig, analysis: AnalysisResult) {
-  const serializableConfig: SerializablePodcastConfig = {
-    ...config,
-    voiceMapping: config.voiceMapping ? Array.from(config.voiceMapping.entries()) : [],
-  };
-  const projectFile: PodcastProjectFile = { version: '1.1', generatedScript: script, podcastConfig: serializableConfig, analysisResult: analysis };
-
-  const blob = new Blob([JSON.stringify(projectFile, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = ((script.title || 'podcast_project').replace(/[\/\\?%*:|"<>]/g, '-')) + '.json';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  console.log(`✅ [ParserService] Parsed ${messages.length} messages from ${new Set(messages.map(m => m.role)).size} speakers.`);
+  return { messages };
 }

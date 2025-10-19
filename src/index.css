@@ -2,9 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Optional: Force dark mode by default */
+html {
+  color-scheme: dark;
+}
 body {
-    background-color: #111827;
-    color: #d1d5db;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+  @apply bg-dark-bg text-white;
+  font-family: 'Inter', sans-serif;
 }

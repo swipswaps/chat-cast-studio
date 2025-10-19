@@ -1,19 +1,27 @@
-// src/components/ErrorBoundary.tsx
+// File: src/components/ErrorBoundary.tsx
+// PRF-COMPLIANT FULL VERSION
+// Purpose: Capture React render errors and display a user-friendly message.
+// Logs full error + stack trace to console for developer inspection.
+
 import React from "react";
 
-export class ErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  { hasError: boolean; error: any }
-> {
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: any; // Using `any` for flexibility across error types
+}
+
+export class ErrorBoundary extends React.Component<{ children: React.ReactNode }, ErrorBoundaryState> {
   constructor(props: { children: React.ReactNode }) {
     super(props);
     this.state = { hasError: false, error: null };
   }
 
+  // Triggered when a child component throws an error
   static getDerivedStateFromError(error: any) {
     return { hasError: true, error };
   }
 
+  // Additional logging (e.g., stack trace)
   componentDidCatch(error: any, info: any) {
     console.error("Caught error in ErrorBoundary:", error, info);
   }
