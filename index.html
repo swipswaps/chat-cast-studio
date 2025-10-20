@@ -4,26 +4,32 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chatcast Studio</title>
-    <!-- COOP and COEP headers are required for ffmpeg.wasm to work -->
+
+    <!-- COOP and COEP headers required for ffmpeg.wasm -->
     <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin" />
     <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp" />
-<script type="importmap">
-{
-  "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react-dropzone": "https://aistudiocdn.com/react-dropzone@^14.3.8",
-    "jszip": "https://aistudiocdn.com/jszip@^3.10.1",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.24.0",
-    "@ffmpeg/ffmpeg": "https://aistudiocdn.com/@ffmpeg/ffmpeg@^0.12.15",
-    "@ffmpeg/util": "https://aistudiocdn.com/@ffmpeg/util@^0.12.2",
-    "vite": "https://aistudiocdn.com/vite@^7.1.9",
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.4"
-  }
-}
-</script>
-</head>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/favicon.png" />
+
+    <!-- Importmap for external modules -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://aistudiocdn.com/react@^19.2.0",
+        "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+        "react/": "https://aistudiocdn.com/react@^19.2.0/",
+        "react-dropzone": "https://aistudiocdn.com/react-dropzone@^14.3.8",
+        "jszip": "https://aistudiocdn.com/jszip@^3.10.1",
+        "@google/genai": "https://aistudiocdn.com/@google/genai@^1.24.0",
+        "@ffmpeg/ffmpeg": "https://aistudiocdn.com/@ffmpeg/ffmpeg@^0.12.15",
+        "@ffmpeg/util": "https://aistudiocdn.com/@ffmpeg/util@^0.12.2",
+        "vite": "https://aistudiocdn.com/vite@^7.1.9",
+        "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.4"
+      }
+    }
+    </script>
+  </head>
   <body class="bg-dark-bg text-dark-text antialiased">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

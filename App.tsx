@@ -1,8 +1,11 @@
 // File: src/App.tsx
-// PRF-COMPLIANT FULL VERSION — uses CSS variables for consistent dark theme
+// PRF-COMPLIANT FULL VERSION
+// Purpose: Main entry point for ChatCast Studio app with full integration
+// of Podcast Generation Settings (tone, abstraction level, summary length).
+// Fixes white screen by aligning PodcastSettings props and ensuring safe async handling.
 
-import React, { useState, useCallback } from 'react';
-import PodcastSettings from './components/PodcastSettings';
+import React, { useState } from 'react';
+import PodcastSettings from './components/PodcastSettings'; // ✅ FIX: default export
 import { AnalysisSummary } from './components/AnalysisSummary';
 import { ScriptPreview } from './components/ScriptPreview';
 import { Loader } from './components/Loader';
@@ -19,9 +22,13 @@ const defaultConfig: PodcastConfig = {
   voiceMapping: new Map(),
   includeMusic: true,
   includeSfx: true,
+  // Added for generation tuning:
+  abstractionLevel: 'high',
+  tone: 'informative',
+  summaryLength: 'medium',
 };
 
-const App: React.FC = () => {
+export const App: React.FC = () => {
   const [config, setConfig] = useState<PodcastConfig>(defaultConfig);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [script, setScript] = useState<GeneratedScript | null>(null);
@@ -29,33 +36,34 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSettingsChange = useCallback((settings: any) => {
-    setConfig((prev) => ({
-      ...prev,
-      style: settings.narrationStyle || prev.style,
-      technicality: settings.abstractionLevel || prev.technicality,
-      tone: settings.tone || prev.tone,
-      summaryLength: settings.summaryLength || prev.summaryLength,
-    }));
-  }, []);
-
+  // --- Handle chat or script input ---
   const handleChatInput = async (file?: File, pastedText?: string) => {
     if (!file && !pastedText) return;
-    setLoading(true); setError(null);
+
+    setLoading(true);
+    setError(null);
     try {
       const content = file ? await file.text() : pastedText!;
       const processed = await parseTextContent(content);
+
       if (processed.messages) {
         setChatMessages(processed.messages);
         setAnalysis(analyzeChat(processed.messages));
         setScript(null);
+
         try {
-          const generated = await generateScriptFromChat(processed.messages, config as any);
+          // ✅ Pass podcast generation parameters to the script generator
+          const generated = await generateScriptFromChat(processed.messages, {
+            tone: config.tone,
+            abstractionLevel: config.abstractionLevel,
+            summaryLength: config.summaryLength,
+            narrationStyle: config.style,
+          });
           setScript(generated);
           setAnalysis(analyzeScript(generated));
         } catch (gemErr) {
           console.error('Gemini script generation failed', gemErr);
-          setError('Gemini script generation failed.');
+          setError('Gemini script generation failed. You can still continue with uploaded chat.');
         }
       } else if (processed.script) {
         setScript(processed.script);
@@ -64,51 +72,74 @@ const App: React.FC = () => {
       }
     } catch (err) {
       console.error('Failed to process chat input', err);
-      setError('Failed to process chat or script.');
-    } finally { setLoading(false); }
+      setError('Failed to process chat or script. Check console for details.');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // --- Handle updated settings from PodcastSettings ---
+  const handleSettingsChange = (settings: any) => {
+    setConfig((prev) => ({
+      ...prev,
+      tone: settings.tone,
+      abstractionLevel: settings.abstractionLevel,
+      summaryLength: settings.summaryLength,
+      style: settings.narrationStyle,
+    }));
+  };
+
+  // --- Start a new project ---
   const handleNewProject = () => {
-    setChatMessages([]); setScript(null); setAnalysis(null); setConfig(defaultConfig); setError(null);
+    setChatMessages([]);
+    setScript(null);
+    setAnalysis(null);
+    setConfig(defaultConfig);
+    setError(null);
   };
 
   return (
     <ErrorBoundary>
-      <div
-        className="app container mx-auto p-6"
-        style={{
-          backgroundColor: 'var(--bg-dark-bg)',
-          color: 'var(--text-dark-text)',
-        }}
-      >
-        <h1 className="text-3xl font-bold mb-6">ChatCast Studio</h1>
-        <PodcastSettings onChange={handleSettingsChange} analysis={analysis} />
+      <div className="app container mx-auto p-6">
+        <h1 className="text-3xl font-bold text-white mb-6">ChatCast Studio</h1>
+
+        {/* Podcast & Generation Settings */}
+        <PodcastSettings onChange={handleSettingsChange} />
+
+        {/* File upload or paste */}
         <div className="my-4">
           <FileUpload
             onFileSelected={(file) => handleChatInput(file)}
             onTextPasted={(text) => handleChatInput(undefined, text)}
           />
         </div>
+
+        {/* Loading Indicator */}
         {loading && <Loader message="Processing chat/script..." />}
+
+        {/* Display any errors */}
         {error && (
-          <div
-            className="p-2 rounded mb-2"
-            style={{ backgroundColor: 'red', color: 'var(--text-dark-text)' }}
-          >
-            {error}
-          </div>
+          <div className="p-2 bg-red-600 text-white rounded mb-2">{error}</div>
         )}
+
+        {/* Analysis Summary */}
         {analysis && !loading && <AnalysisSummary analysis={analysis} />}
+
+        {/* Generated Script Preview */}
         {script && !loading && (
           <ScriptPreview
             script={script}
             config={config}
-            analysis={analysis || { speakers: [], messageCount: 0, wordCount: 0, estimatedDurationMinutes: 0 }}
+            analysis={
+              analysis || { speakers: [], messageCount: 0, wordCount: 0, estimatedDurationMinutes: 0 }
+            }
             onNewScript={handleNewProject}
           />
         )}
+
+        {/* Fallback message */}
         {!loading && !script && !analysis && !error && (
-          <p style={{ color: 'var(--text-dark-text)', marginTop: '1rem' }}>
+          <p className="text-gray-400 mt-4">
             Upload a chat log or paste text to begin generating your podcast script.
           </p>
         )}

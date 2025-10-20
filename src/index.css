@@ -1,12 +1,50 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* src/index.css */
+/* PRF-COMPLIANT: Tailwind-safe global styles for ChatCast Studio */
 
-/* Optional: Force dark mode by default */
-html {
-  color-scheme: dark;
+:root {
+  --bg-dark-bg: #111827;      /* matches Tailwind bg-gray-900 */
+  --text-dark-text: #f3f4f6;  /* matches Tailwind text-gray-100 */
+  --border-dark: #374151;     /* matches Tailwind border-gray-700 */
+  --accent-blue: #3b82f6;     /* matches Tailwind blue-500 for range sliders/links */
 }
-body {
-  @apply bg-dark-bg text-white;
-  font-family: 'Inter', sans-serif;
+
+/* Global reset */
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, sans-serif;
+  background-color: var(--bg-dark-bg);
+  color: var(--text-dark-text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Prevent mobile text scaling warnings */
+html {
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Utility classes compatible with Tailwind */
+.bg-dark-bg { background-color: var(--bg-dark-bg) !important; }
+.text-dark-text { color: var(--text-dark-text) !important; }
+.border-dark { border-color: var(--border-dark) !important; }
+.accent-blue { accent-color: var(--accent-blue) !important; }
+
+/* Smooth transitions for interactive elements */
+button, input, select, textarea {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+/* Links and buttons hover/focus states */
+a, button {
+  cursor: pointer;
+  outline: none;
+}
+
+a:hover, button:hover,
+a:focus, button:focus {
+  filter: brightness(1.1);
 }

@@ -1,7 +1,7 @@
 // File: vite.config.ts
-// PRF-COMPLIANT CONFIGURATION — ChatCast Studio (2025-10-15)
-// Adds explicit alias support for src/services, src/components, and root-level '@'.
-// Keeps the secure proxy and sourcemap configuration intact.
+// PRF-COMPLIANT CONFIGURATION — ChatCast Studio (2025-10-20)
+// Upgraded to resolve WebSocket "can't connect" issue in Firefox/Chrome.
+// Maintains aliases, proxy, and sourcemap support.
 
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
@@ -10,10 +10,16 @@ import path from "path";
 export default defineConfig({
   plugins: [react()],
 
-  // --- Server setup for local API proxying ---
   server: {
-    host: true,
+    host: true, // binds to all network interfaces
     port: 5173,
+    strictPort: true, // fail if port is in use
+    open: true, // auto-open browser on dev start
+    cors: true, // allow CORS for dev server
+    // Explicit WebSocket URL config to avoid Firefox/Chrome connection errors
+    client: {
+      webSocketURL: "ws://localhost:5173/ws", // Vite HMR WebSocket endpoint
+    },
     proxy: {
       "/api": {
         target: "http://localhost:3000",
@@ -28,7 +34,6 @@ export default defineConfig({
     },
   },
 
-  // --- Alias resolution ensures imports like 'services/...' work anywhere in src/ ---
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -39,13 +44,18 @@ export default defineConfig({
     },
   },
 
-  // --- Production build settings ---
   build: {
     outDir: "dist",
     sourcemap: true,
     rollupOptions: {
-      // Avoid accidental externalization of local modules
       external: [],
+    },
+  },
+
+  // --- Optional optimization tweaks to improve HMR stability ---
+  optimizeDeps: {
+    esbuildOptions: {
+      target: "es2020",
     },
   },
 });
