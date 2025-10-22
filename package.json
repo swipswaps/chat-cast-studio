@@ -1,6 +1,7 @@
 {
   "name": "chatcast-studio",
   "version": "1.0.0",
+  "type": "module",
   "description": "AI-powered tool to convert chat logs into podcasts.",
   "main": "index.js",
   "scripts": {
@@ -8,7 +9,8 @@
     "server": "node server.mjs",
     "start": "npm run dev",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "podcast:test": "ts-node src/test_runPodcastFlow.ts"
   },
   "keywords": [
     "react",
@@ -22,18 +24,22 @@
     "@ffmpeg/ffmpeg": "^0.12.10",
     "@ffmpeg/util": "^0.12.1",
     "@google/genai": "^1.23.0",
+    "adm-zip": "^0.5.16",
     "body-parser": "^2.2.0",
+    "dotenv": "^17.2.3",
     "jszip": "^3.10.1",
     "lucide-react": "^0.546.0",
     "morgan": "^1.10.1",
-    "openai": "^6.3.0",
+    "multer": "^2.0.2",
+    "node-fetch": "^3.3.2",
+    "openai": "^6.6.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-dropzone": "^14.3.8"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.0",
-    "@types/node": "^24.7.2",
+    "@types/node": "^24.9.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
@@ -46,7 +52,8 @@
     "nodemon": "^3.1.10",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.18",
-    "typescript": "^5.5.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
     "vite": "^7.1.9",
     "vitest": "^3.2.4"
   }

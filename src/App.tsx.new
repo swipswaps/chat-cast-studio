@@ -1,13 +1,17 @@
 // File: src/App.tsx
 /**
- * ChatCast Studio — PRF-Compliant Frontend (2025-10-21)
+ * ChatCast Studio — PRF-Compliant Frontend (2025-10-22)
+ * Dependencies are auto-managed via ./services/envSetup.js
  * Features:
- *  - Auto-fetch /api/voices for user selection
+ *  - Auto-detects and exports missing API keys using envSetup.js
+ *  - Fetches /api/voices for user selection
  *  - Handles chat log uploads (.txt/.json/.zip)
  *  - Streams TTS audio from backend
  *  - Provides direct audio download
- *  - Fully integrated with PodcastSettings, AnalysisSummary, ScriptPreview
+ *  - Integrated with PodcastSettings, AnalysisSummary, ScriptPreview
  */
+
+import './services/envSetup.js'; // ✅ auto-manages dependencies and environment keys
 
 import React, { useState, useEffect, useCallback } from 'react';
 import PodcastSettings from './components/PodcastSettings';

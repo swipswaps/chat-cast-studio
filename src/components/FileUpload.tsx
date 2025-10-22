@@ -1,15 +1,11 @@
 // src/components/FileUpload.tsx
-// PRF-COMPLIANT — ChatCast Studio (2025-10-15)
-// Updated to include optional onTextPasted handler for pasted chat text
-// and async support for onFileSelected (since App.tsx awaited it).
+// PRF-COMPLIANT — ChatCast Studio (2025-10-21)
+// Supports file uploads and direct paste of chat text
 
 import React, { useRef } from "react";
 
 export interface FileUploadProps {
-  // Allow async handlers (App.tsx uses an async function)
   onFileSelected: (file: File) => void | Promise<void>;
-
-  // Optional handler for text pasted directly into the drop area
   onTextPasted?: (text: string) => void;
 }
 
@@ -32,7 +28,7 @@ export function FileUpload({ onFileSelected, onTextPasted }: FileUploadProps) {
   return (
     <div
       className="p-4 border-2 border-dashed rounded-lg text-center"
-      onPaste={handlePaste} // enable paste detection
+      onPaste={handlePaste}
     >
       <input
         ref={fileInputRef}

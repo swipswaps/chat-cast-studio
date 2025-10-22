@@ -1,0 +1,26 @@
+// src/services/api.js
+// ---------------------------------------------------------------------------
+// Frontend API helpers for ChatCast Studio
+// ---------------------------------------------------------------------------
+
+export async function getVoices() {
+  const res = await fetch("/api/voices");
+  if (!res.ok) throw new Error(`Failed to fetch voices: ${res.statusText}`);
+  return await res.json();
+}
+
+export async function generateTTS({ text, voice, speakingRate, pitch }) {
+  const res = await fetch("/api/tts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, voice, speakingRate, pitch }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`TTS generation failed: ${err}`);
+  }
+
+  const blob = await res.blob();
+  const audioUrl = URL.createObjectURL(blob);
+  return audioUrl;
+}
